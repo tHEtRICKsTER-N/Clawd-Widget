@@ -60,6 +60,7 @@ src/core/
   achievements.ts      stats, achievements and the tracker that saves them (debounced, merge-safe across tabs)
   game.ts              Bug Jump: the mini-game played on the button
   export.ts            GIF (gifenc) / WebM (WebCodecs VP9 + a small WebM writer) / PNG sprite-sheet export
+  overlay.ts           the OBS overlay's URL ⇄ settings (overlay.html runs src/overlay.ts)
   life.ts              ClawdLife: what Clawd does between plays (watching, drag and drop, pokes, antics, dozing)
   widget.ts            FloatingWidget: draggable/dockable wrapper (page or desktop-window mode)
   settings.ts          Settings model, presets, fonts, colour utils
@@ -130,6 +131,30 @@ With [Claude Code hooks](https://code.claude.com/docs/en/hooks), Clawd thinks wh
 - `Stop` (Claude has finished) → `done`: Jump Party.
 
 `"async": true` lets Claude carry on without waiting for the widget. With the local endpoint on, each `command` can be the `curl` line above instead, which is quicker than starting the app.
+
+## OBS overlay (for streamers)
+
+`overlay.html` shows just the button on a transparent page, set up entirely from its URL. In OBS: **Sources → + → Browser**, paste the URL, and set the width to the button's size plus 16 px. The playground's *OBS overlay* card builds the URL from your current look.
+
+```
+overlay.html?theme=clawd:OiZfWDee____2HZP7-j_oHb48MNaAA&text=Live!&play=1&every=300
+```
+
+| parameter | |
+|---|---|
+| `theme` | a share code (colours and CRT) |
+| `text`, `font`, `bold=0/1`, `size` | the label and the width in px |
+| `anim` | `guitar`, `hello`, `jump`, `code`, `dance`, `sleep`, `think` or `random` |
+| `play=1` or `play=<anim>` | play when the page loads |
+| `every=<s>` | play again every so many seconds |
+| `loop=1` | keep playing |
+| `state` | `working`, `waiting`, `done` or `idle`, as in the Claude Code recipe |
+| `sound=1`, `volume=0–100` | chiptune sounds |
+| `wear=<cosmetic>` | `partyhat`, `propeller`, `crown`, `shades`, `nightcap`, `headphones` |
+| `idle=0`, `eyes=0`, `blink=0` | no antics, eyes that don't follow the cursor, no blinking |
+| `pad=<px>` | margin around the button (default 8) |
+
+While it's open, changing the hash to `#play=<anim>` or `#state=<state>` triggers that right away.
 
 ## Desktop widget notes
 

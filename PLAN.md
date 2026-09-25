@@ -78,7 +78,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
   Any animation, in the current theme, at any size. `setControlled` already renders exact frames.
 - [ ] **5.2 `<clawd-button>` web component on npm** (M)
   Game devs can drop it onto an itch.io page as their Play button.
-- [ ] **5.3 OBS overlay URL** (S)
+- [x] **5.3 OBS overlay URL** (S)
   Transparent background, with settings and triggers in the URL.
 - [ ] **5.4 New animations** (S each)
   Ship It 🚀, Bug Squash 🐛, Level Up ⬆️, plus seasonal ones that switch on by date.

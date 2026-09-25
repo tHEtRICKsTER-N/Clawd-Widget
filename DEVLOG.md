@@ -4,6 +4,29 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 5.3 OBS overlay URL
+
+`overlay.html` (a second entry in the web build) is the button alone on a transparent page, for an OBS Browser Source. It's set up entirely from the URL (`src/core/overlay.ts`: `parseOverlay` and `overlayUrl`):
+- **Look:** `theme=` (a share code), `text`, `font`, `bold`, `size`, `wear`.
+- **What plays:** `anim`, `loop=1`, `sound=1`, `volume`.
+- **Behaviour:** `idle=0`, `eyes=0`, `blink=0`, `pad`.
+- **Triggers:** `play=1|<anim>` on load, `every=<s>` to play again, `state=<status>` (the Claude Code states from 3.1), and live `#play=…` / `#state=…` hash changes.
+
+There's no toolbar, and clicking still plays or pokes. The page exposes `window.clawdOverlay` for devtools and tests.
+
+**Builder.** An *OBS overlay* card in the playground (web only, since that's where the page is served) builds the URL from your current look, with only non-default values, plus *Play when it loads*, *Loop* and *Play again every*, and offers Copy and Open.
+
+**Web build.** `vite.config.ts` now builds both pages, with `base: './'` so the site works from any folder (e.g. GitHub Pages). The Reference compare clip now loads from `import.meta.env.BASE_URL` instead of `/`.
+
+Verified:
+- Round trip: a non-default look (Synthwave, CRT, Press Start, "LIVE now & more?", 466 px, dance, sound at 30%, crown, antics and eyes off) → URL → settings gives every field back. Default settings give the bare URL.
+- Overlay page (Chromium): both backgrounds are `rgba(0, 0, 0, 0)` and a screenshot without a background keeps the corners clear. `play=jump&every=4` plays at 0.0, 4.0 and 8.0 s. `#play=hello` and `#state=working` switch at once (to `hello`, and to `think` for working). `?state=waiting` waves, then waits with the "!".
+- Builder: Copy puts `…/overlay.html?play=1` on the clipboard.
+- The built site served from a subfolder (`/Clawd-Widget/`) loads the playground, the reference clip and the overlay with no errors or 404s, and the builder's URL includes the subfolder.
+- `tsc`, `check:anims`, `build`, `build:ext` and `build:desktop` pass.
+
+Not verified: inside OBS itself (not available here). The page only relies on a transparent background and plain web APIs, which OBS's browser source supports.
+
 ## 2026-09-25 · 5.1 Export GIF, WebM and sprite sheet
 
 An *Export* card in the settings: animation, format (GIF / WebM / sprite sheet), size (S/M/L/XL), fps (12/20/25/30/50) and *Seamless loop*, which exports just the loop section from `duration` to `duration + span`, seam carry-over included, so it repeats without a jump. It uses the settings being edited: colours, font, label, CRT and what Clawd wears. The card isn't in the compact extension popup, which can close mid-export; it is in the extension's options page, the playground and the desktop settings.

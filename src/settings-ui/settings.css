@@ -70,6 +70,8 @@
 .sp-preset-group { display: flex; flex-direction: column; gap: 6px; }
 .sp-share { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .sp-share-row { display: flex; gap: 6px; }
+.sp-check select { width: auto; padding: 3px 6px; }
+a.sp-btn { text-decoration: none; display: inline-flex; align-items: center; }
 .sp .sp-share-row .sp-code { flex: 1; min-width: 0; font: 12px ui-monospace, Consolas, monospace; }
 .sp-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 .sp-preset { display: grid; grid-template-columns: 22px 9px 9px 1fr; gap: 5px; align-items: center; background: #1f1e25; color: var(--sp-text);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ACHIEVEMENTS, emptyStats, normalizeStats, type Stats } from '../core/achievements'
 import { canExportWebm, exportGif, exportSheet, exportWebm, type ExportFormat } from '../core/export'
+import { overlayUrl } from '../core/overlay'
 import type { ClawdButton } from '../core/renderer'
 import { DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, parseThemeCode, themeCode, type Colors, type Settings } from '../core/settings'
 import type { SettingsStore, StatsStore } from '../core/store'
@@ -195,6 +196,62 @@ function Exporter({ s }: { s: Settings }) {
         <span className="sp-hint">{note || `${width} × ${Math.round((width * 104) / 676)} px, in your current colours, font and label`}</span>
       </div>
       {!webmOk && <span className="sp-hint">WebM needs a browser with a video encoder (Chrome, Edge).</span>}
+    </section>
+  )
+}
+
+/** A URL for an OBS Browser Source: this button, transparent background, playing on its own. */
+function ObsOverlay({ s }: { s: Settings }) {
+  const [play, setPlay] = useState(true)
+  const [loop, setLoop] = useState(false)
+  const [every, setEvery] = useState(0)
+  const [copied, setCopied] = useState(false)
+  const base = new URL('overlay.html', location.href).href.split('?')[0]
+  const url = overlayUrl(base, s, { play, loop, every })
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* the field can be copied by hand */
+    }
+  }
+  return (
+    <section className="sp-card">
+      <h3>OBS overlay</h3>
+      <div className="sp-row">
+        <label className="sp-check">
+          <input type="checkbox" checked={play} onChange={(e) => setPlay(e.target.checked)} />
+          Play when it loads
+        </label>
+        <label className="sp-check">
+          <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
+          Loop
+        </label>
+        <label className="sp-check">
+          Play again every
+          <select value={every} onChange={(e) => setEvery(Number(e.target.value))}>
+            {[0, 30, 60, 120, 300, 600].map((n) => (
+              <option key={n} value={n}>
+                {n ? `${n / 60 >= 1 ? `${n / 60} min` : `${n} s`}` : 'never'}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="sp-share-row">
+        <input className="sp-code" readOnly value={url} onFocus={(e) => e.target.select()} aria-label="Overlay URL" />
+        <button className="sp-btn" onClick={() => void copy()}>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        <a className="sp-btn" href={url} target="_blank" rel="noreferrer">
+          Open
+        </a>
+      </div>
+      <span className="sp-hint">
+        In OBS: Sources → + → Browser, paste the URL, set the width to at least {s.size + 16} px. The background stays transparent. Uses your current look.
+      </span>
     </section>
   )
 }
@@ -457,6 +514,8 @@ export function SettingsPanel({ store, host, compact, currentSite, extra, stats 
       {stats && <Achievements store={stats} wearing={s.cosmetic} onWear={(c) => update({ cosmetic: c })} />}
 
       {!compact && <Exporter s={s} />}
+
+      {host === 'web' && <ObsOverlay s={s} />}
 
       <section className="sp-card">
         <h3>Sound</h3>
