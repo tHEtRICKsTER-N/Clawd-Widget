@@ -1,6 +1,46 @@
-# Clawd button: pixel widget
+<div align="center">
 
-A pixel-art Clawd button with a square-cell energy grid. It started as a recreation of the Ultracode reference animation (`ultracode_animation_assets/`) and now ships as:
+<img src="docs/media/hero.gif" width="540" alt="Clawd, a small orange pixel creature, shredding a guitar on a purple button while the grid of cells behind the label pulses with light">
+
+# Clawd Widget
+
+**Clawd lives on your screen.** A pixel-art button where Clawd jams on guitar, watches your cursor, dozes off when you're away, cheers when Claude Code finishes a task, and hides a mini-game.
+
+Browser extension · Desktop widget · `<clawd-button>` web component · OBS overlay
+
+</div>
+
+> An unofficial fan project. Clawd is the Claude Code mascot; this project isn't affiliated with or endorsed by Anthropic.
+
+## What it does
+
+Click it and Clawd plays one of 12 animations while every beat ripples through the energy grid. Between plays it lives a little: it follows your pointer, dangles when you drag it, squishes when you poke it, stretches, yawns and wanders, and naps if you leave it alone.
+
+| | |
+|:---:|:---:|
+| <img src="docs/media/ship.gif" width="340" alt="Ship It: a countdown, then a rocket launches and streaks across the grid"> | <img src="docs/media/squash.gif" width="340" alt="Bug Squash in the Game Boy theme: a bug crawls in and Clawd flattens it"> |
+| **Ship It**: countdown, liftoff, a trail across the grid | **Bug Squash**: pounce! (Game Boy theme, CRT on) |
+| <img src="docs/media/levelup.gif" width="340" alt="Level Up in the Synthwave theme: Clawd flickers bigger and LV UP floats beside it"> | <img src="docs/media/code.gif" width="340" alt="Code Mode in the Terminal theme: Clawd types on a laptop as code glyphs fly"> |
+| **Level Up**: mushroom-style power-up | **Code Mode**: typing furiously |
+| <img src="docs/media/jump.gif" width="340" alt="Jump Party: three hops with confetti and shockwaves"> | <img src="docs/media/dance.gif" width="340" alt="Dance Party in the Catppuccin theme"> |
+| **Jump Party**: a shockwave on every landing | **Dance Party** |
+| <img src="docs/media/hello.gif" width="340" alt="Hello Wave in the PICO-8 theme with a pixel font"> | <img src="docs/media/think.gif" width="340" alt="Thinking in the Nord theme: a thought bubble fills with dots"> |
+| **Hello Wave** | **Thinking**: loops while Claude Code works |
+| <img src="docs/media/sleep.gif" width="340" alt="Sleepy: Clawd snoozes with rising Zzz, then wakes with a start"> | <img src="docs/media/bugjump.png" width="340" alt="Bug Jump: Clawd leaps over a bug crawling along the grid, with the score in place of the label"> |
+| **Sleepy** | **Bug Jump**: a runner game played on the button |
+| <img src="docs/media/spooky.gif" width="340" alt="Spooky in the Dracula theme: bats, a ghost and a jack-o'-lantern"> | <img src="docs/media/snow.gif" width="340" alt="Snow Day in the Tokyo Night theme: snow falls and piles up on Clawd's head"> |
+| **Spooky** 🎃 in October | **Snow Day** ❄️ in December |
+
+### Made for
+
+- **Gamers:** Bug Jump, a certain famous cheat code, nine achievements (six of them unlock hats and shades for Clawd), chiptune sound effects synthesized in sync with the grid, and Game Boy, PICO-8 and Virtual Boy themes with a CRT filter.
+- **Claude Code users:** with three [hooks](#recipe-clawd-follows-claude-code), Clawd thinks while Claude works, waves when it needs you, and throws a party when it's done.
+- **Streamers:** an [OBS overlay](#obs-overlay-for-streamers) set up entirely from a URL, with a transparent background.
+- **Game devs and web devs:** [`<clawd-button>`](packages/clawd-button/README.md) makes it your game's Play button in one tag, and the exporter turns any animation into a GIF, WebM or sprite sheet (all the GIFs on this page came from it).
+
+<img src="docs/media/themes.png" width="100%" alt="Twelve of the fifteen themes: Original, Synthwave, Game Boy DMG, PICO-8, Dracula, Catppuccin, Tokyo Night, Nord, Terminal, Virtual Boy, Candy and Sunset">
+
+## Get it
 
 | | where | how to run |
 |---|---|---|
@@ -8,6 +48,8 @@ A pixel-art Clawd button with a square-cell energy grid. It started as a recreat
 | **Browser extension** (Chrome, Edge, Brave, Arc) | `extension/` → `dist-extension/` | `npm run build:ext`, then `chrome://extensions` → Developer mode → **Load unpacked** → pick `dist-extension/` |
 | **Desktop widget** (Windows; also builds for macOS/Linux) | `desktop/` → `release/` | `npm run desktop` to run, `npm run dist:desktop` to build `release/Clawd Widget Setup 1.0.2.exe` (installer) and `release/Clawd Widget 1.0.2.exe` (portable) |
 | **`<clawd-button>` web component** (any web page, e.g. a game's Play button) | `src/wc/` → `packages/clawd-button/` | `npm run build:wc`, then open `packages/clawd-button/demo.html` from a local web server. See [its README](packages/clawd-button/README.md) |
+
+Want to help? See [CONTRIBUTING.md](CONTRIBUTING.md). New animations, themes and hats are very welcome.
 
 ## Getting started
 
@@ -22,7 +64,7 @@ npm run dev          # web playground at http://localhost:5178
 
 `node_modules/`, `dist*/` and `release/` are not included in the shared zip. Everything in them is regenerated by the commands in the table above.
 
-## Features
+## Features in detail
 
 - **Click to play once**, then it rests in an idle pose (blinks, glances around). Choose **Loop** to keep it going after a click.
 - **Idle antics:** every few minutes Clawd stretches, yawns, scratches its head or wanders across the button and back. Left alone for five minutes, it nods off (Zzz) and wakes with a start when the pointer comes near. Turn it off with *Idle antics*.

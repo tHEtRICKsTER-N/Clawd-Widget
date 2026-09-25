@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+        env:
+          # the desktop build only needs Electron to package, not to compile
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - name: Type-check
+        run: npx tsc -p tsconfig.json
+      - name: Animations are frame-identical
+        run: npm run check:anims
+      - name: Build playground
+        run: npm run build
+      - name: Build extension
+        run: npm run build:ext
+      - name: Build desktop pages
+        run: npm run build:desktop
+      - name: Build web component
+        run: npm run build:wc
