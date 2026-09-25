@@ -22,22 +22,37 @@ export function loopTime(a: AnimationDef, t: number): number {
   return a.loopFrom + ((t - a.loopFrom) % span)
 }
 
+const IDLE_CYCLE = 3.7
+/** within each idle cycle: blink after this */
+const BLINK_AT = 3.56
+/** every third cycle: glance left, then right, between these */
+const GLANCE = [1.2, 1.75, 2.3] as const
+
 /**
  * Resting state between plays: standing Clawd who blinks and glances around.
  * With a gaze it watches that way instead (still blinking), e.g. towards the cursor.
  */
 export function idlePose(t: number, blink: boolean, gaze?: Gaze | null): Pose {
-  const cycle = 3.7
-  const n = Math.floor(t / cycle)
-  const u = t - n * cycle
+  const n = Math.floor(t / IDLE_CYCLE)
+  const u = t - n * IDLE_CYCLE
   if (gaze) {
-    if (blink && u > 3.56) return pose(front({ eyes: 'closed' }), { name: 'blink' })
+    if (blink && u > BLINK_AT) return pose(front({ eyes: 'closed' }), { name: 'blink' })
     return pose(front(gaze[0] || gaze[1] ? { gaze } : {}), { name: `watch ${gaze[0]},${gaze[1]}` })
   }
   if (!blink) return pose(front(), { name: 'idle' })
-  if (u > 3.56) return pose(front({ eyes: 'closed' }), { name: 'blink' })
-  if (n % 3 === 2 && u > 1.2 && u < 2.3) return pose(front({ eyes: u < 1.75 ? 'lookL' : 'lookR' }), { name: 'glance' })
+  if (u > BLINK_AT) return pose(front({ eyes: 'closed' }), { name: 'blink' })
+  if (n % 3 === 2 && u > GLANCE[0] && u < GLANCE[2]) return pose(front({ eyes: u < GLANCE[1] ? 'lookL' : 'lookR' }), { name: 'glance' })
   return pose(front(), { name: 'idle' })
+}
+
+/** Seconds from t until idlePose(t, blink, gaze) can next look different (Infinity: never). */
+export function idleNextChange(t: number, blink: boolean, watching: boolean): number {
+  if (!blink) return Infinity
+  const n = Math.floor(t / IDLE_CYCLE)
+  const u = t - n * IDLE_CYCLE
+  const marks = !watching && n % 3 === 2 ? [...GLANCE, BLINK_AT, IDLE_CYCLE] : [BLINK_AT, IDLE_CYCLE]
+  const m = marks.find((x) => x > u) ?? IDLE_CYCLE
+  return m - u + 0.001 // just past the mark, where the pose has changed
 }
 
 export { guitar }

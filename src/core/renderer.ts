@@ -36,6 +36,8 @@ const PRESS_COLOR = '#1c1e1b'
 const LABEL_LEFT = 22
 const LABEL_RIGHT = 540
 const LABEL_SIZE = 30.5
+/** longest nap between frames while nothing changes (a safety net, e.g. for zoom changes) */
+const MAX_NAP = 5
 
 export interface RendererOptions {
   /** called when a single play finishes */
@@ -71,6 +73,10 @@ export class ClawdButton {
   private k = 1 // ref px → device px
   private dpr = 1
   private raf = 0
+  /** timer while the loop naps until the next scheduled change */
+  private nap = 0
+  /** longest dt the next frame may use: 0.1 s, or the nap's length after a nap */
+  private maxDt = 0.1
   private last = 0
   private speed = 1
 
@@ -81,7 +87,8 @@ export class ClawdButton {
   private idleT = 0
   private linger: { anim: AnimationDef; end: number; t: number } | null = null
   private controlled: { t: number; anim: AnimId } | null = null
-  private drawnKey = ''
+  /** the still pose on screen, to skip redrawing it (null: redraw) */
+  private drawn: Pose | null = null
   private palette: Record<string, string> = { ...PALETTE }
   private fxColors: Record<string, string> = {}
   private stateCache: RendererState = { mode: 'idle', anim: null, t: 0, pose: '' }
@@ -131,6 +138,7 @@ export class ClawdButton {
     const prev = this.s
     this.s = s
     this.applySettings(prev)
+    this.wake()
   }
 
   get settings() {
@@ -139,6 +147,7 @@ export class ClawdButton {
 
   /** Play an animation (default: the one chosen in settings; 'random' picks a different one each time). */
   play(id?: AnimId | 'random') {
+    this.wake()
     const want = id ?? this.s.animation
     const resolved: AnimId = want === 'random' ? pickRandom(this.lastAnimId) : want
     this.anim = ANIMATIONS[resolved]
@@ -155,12 +164,14 @@ export class ClawdButton {
    * combo); anywhere else, or while playing, it plays the animation.
    */
   click(x: number, y: number) {
+    this.wake()
     if (this.s.pokes && this.mode === 'idle' && !this.controlled && this.life.hits(x, y)) this.life.poke()
     else this.play()
   }
 
   /** Return to the resting state. */
   stop() {
+    this.wake()
     if (this.mode === 'play' && this.anim) this.linger = { anim: this.anim, end: Math.min(this.playT, this.anim.duration), t: 0 }
     this.mode = 'idle'
   }
@@ -171,6 +182,7 @@ export class ClawdButton {
 
   setSpeed(x: number) {
     this.speed = x
+    this.wake()
   }
 
   /**
@@ -178,6 +190,7 @@ export class ClawdButton {
    * dangles during the drag and lands with a thud that shakes the grid.
    */
   setDragging(on: boolean) {
+    this.wake()
     if (!on) this.life.drag(false)
     else if (this.s.dragReact && this.mode === 'idle' && !this.controlled) this.life.drag(true)
   }
@@ -185,6 +198,7 @@ export class ClawdButton {
   /** Dev/testing: render a fixed time of one animation (null = back to normal). */
   setControlled(t: number | null, anim: AnimId = 'guitar') {
     this.controlled = t === null ? null : { t, anim }
+    this.wake()
   }
 
   get state(): RendererState {
@@ -197,11 +211,14 @@ export class ClawdButton {
    * the mouse anywhere on screen) call this too.
    */
   lookAt(x: number, y: number) {
+    // the pointer only matters to eyes that follow it and to dozing off / waking up
+    if (this.s.eyesFollow || this.s.idleAntics) this.wake()
     this.life.lookAt(x, y)
   }
 
   destroy() {
     cancelAnimationFrame(this.raf)
+    clearTimeout(this.nap)
     window.removeEventListener('pointermove', this.onPointerMove, { capture: true })
     this.el.remove()
   }
@@ -261,7 +278,7 @@ export class ClawdButton {
     const fontChanged = !prev || prev.font !== s.font || prev.customFont !== s.customFont || prev.bold !== s.bold
     this.fitLabel()
     if (fontChanged) void ensureFont(s.font).then(() => this.fitLabel())
-    this.drawnKey = ''
+    this.drawn = null
   }
 
   private fitLabel() {
@@ -291,15 +308,59 @@ export class ClawdButton {
       c.height = H
       ctx.imageSmoothingEnabled = false
     }
-    this.drawnKey = ''
+    this.drawn = null
   }
 
   // ───────────────────────── frame loop ─────────────────────────
 
   private tick = (now: number) => {
-    this.raf = requestAnimationFrame(this.tick)
-    const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0
+    this.raf = 0
+    const dt = this.last ? Math.min(this.maxDt, (now - this.last) / 1000) : 0
     this.last = now
+    this.maxDt = 0.1
+    this.schedule(this.step(now, dt))
+  }
+
+  /**
+   * Next frame: right away while anything moves. At rest, nap until the next scheduled
+   * change (a blink, the end of watching the pointer, an antic); input wakes it sooner.
+   */
+  private schedule(rest: number) {
+    if (rest < 0.02) {
+      this.raf = requestAnimationFrame(this.tick)
+      return
+    }
+    const secs = Math.min(rest, MAX_NAP)
+    this.maxDt = secs + 0.1
+    this.nap = window.setTimeout(() => {
+      this.nap = 0
+      this.raf = requestAnimationFrame(this.tick)
+    }, secs * 1000)
+  }
+
+  /**
+   * Something happened (input, settings, a play): make sure a frame comes soon. Called
+   * before handling input, so that during a nap the clocks first catch up with now and
+   * whatever the input starts is timed from now.
+   */
+  private wake() {
+    if (!this.nap) {
+      if (!this.raf) this.raf = requestAnimationFrame(this.tick)
+      return
+    }
+    clearTimeout(this.nap)
+    this.nap = 0
+    const now = performance.now()
+    const dt = Math.min(this.maxDt, (now - this.last) / 1000) * this.speed
+    this.last = now
+    this.maxDt = 0.1
+    this.idleT += dt
+    this.life.advance(dt)
+    this.raf = requestAnimationFrame(this.tick)
+  }
+
+  /** Advance and draw one frame; returns seconds until anything can change by itself (0: moving). */
+  private step(now: number, dt: number): number {
     if (Math.max(1, Math.round(window.devicePixelRatio || 1)) !== this.dpr) this.resize()
 
     let anim: AnimationDef | null = null
@@ -308,6 +369,7 @@ export class ClawdButton {
     let pulses: Pulse[] = []
     let particles: Particle[] = []
     let pose: Pose
+    let rest = 0
 
     if (this.controlled) {
       anim = ANIMATIONS[this.controlled.anim]
@@ -346,6 +408,8 @@ export class ClawdButton {
       pose = life.pose
       particles = life.particles
       if (life.pulses.length) pulses = pulses.concat(life.pulses)
+      // naps are timed in real seconds, so only at normal speed
+      if (!this.linger && this.speed === 1) rest = life.rest
     }
 
     const press = anim?.pressIntro && this.s.pressFlash ? t : Infinity
@@ -358,16 +422,18 @@ export class ClawdButton {
       pose: pose.name ?? '',
     }
 
-    // skip redraws while nothing changes (idle, no fading pulses or particles)
-    const key = anim || pulses.length || particles.length ? '' : `${pose.name}|${this.W}`
-    if (key && key === this.drawnKey) return
-    this.drawnKey = key
+    // skip redraws while nothing changes (idle, no fading pulses or particles, same pose)
+    const still = !anim && !pulses.length && !particles.length
+    const d = this.drawn
+    if (still && d && d.frame === pose.frame && d.ox === pose.ox && d.oy === pose.oy && d.scale === pose.scale && d.opacity === pose.opacity) return rest
+    this.drawn = still ? pose : null
 
     this.dark.style.opacity = String(dm)
     this.intro.style.opacity = String(ig)
     this.drawGrid(pulses, fieldT)
     this.drawSprite(pose)
     this.drawFx(particles)
+    return rest
   }
 
   /** Sprite px → client px for where the button is right now. */

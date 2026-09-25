@@ -4,6 +4,28 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 1.5 Idle loop sleeps between changes
+
+While Clawd rests with nothing moving, the frame loop no longer runs 60 times a second. It naps on a timer until the next scheduled change, and input wakes it at once. Measured in Chromium: **9 frames in 8 s at rest** (before: about 480), 4 frames in the 4 s after the pointer stops, 2 frames in 3 s after a play has faded out. Dozing runs at about 10–12 fps.
+
+How it knows when the next change is due:
+- **Engine.** `idleNextChange(t, blink, watching)` next to `idlePose`: seconds until the blink or glance marks of the 3.7 s idle cycle, just past each mark. The cycle's timings became named constants shared by both functions (`check:anims`: `idle` is `same`).
+- **`ClawdLife.frame()`** returns `rest`. It is 0 while anything moves: a reaction, hearts, pulses, the combo counter, a celebration, an antic or a wake-up. While dozing it is 1/12 s. At rest it is the soonest of: the idle cycle's next mark, when watching the pointer ends, the next antic, and dozing off.
+- **Renderer.** `tick` = `step` (advance and draw, returns `rest`) + `schedule` (a `requestAnimationFrame`, or a `setTimeout` nap capped at 5 s as a safety net). Every input and state change calls `wake()`: pointer moves (only if eyes-follow or antics are on), clicks, drags, play, stop, settings, speed, controlled mode. During a nap, `wake()` first advances the clocks to now (`idleT`, and the new `life.advance(dt)`), so whatever the input starts is timed from now. The frame after a nap may use the whole nap as its `dt`, so the idle cycle and antic timers stay in real time. Naps only happen at speed 1, and not while a play or its fade-out is running.
+
+Found and fixed along the way:
+- **Input during a nap was timed from the last frame.** Without the catch-up, a poke arriving 1.5 s into a nap was stamped 1.5 s in the past, and the next frame thought it was already over. The test caught it; the catch-up in `wake()` fixes it.
+- **The idle glance never looked right (already present in 1.0.2).** The redraw skip compared pose *names*, and both halves of the glance are called `glance`, so the look-right half never reached the screen. The skip now compares what is drawn: frame, offsets, scale and opacity. Frames from `front()` are cached, so identical poses are the same object. The idle pose itself is unchanged; the screen now shows all four still frames (idle, blink, left, right).
+
+Verified:
+- Chromium, playground widget: frame counts as above. Blinks still land 3.7 s apart in real time. The pointer moving wakes it and the gaze follows within a frame. A poke, drag, play and settings change from a nap all show within 30–40 ms. A bot colour change repaints while napping.
+- Regression suites against the napping loop: gaze (9 directions, stillness, setting off, during play), drag (dangle, thud, setting off, during play), poke (single, label, combo, lapse, 10-hit celebration, setting off, during play), antics (every antic, poking a wandering Clawd, doze, wake, postponing, setting off, play). The antics test now wakes the loop after forcing timers on the live object.
+- Natural timing at 60× speed: wander at 189 s, yawn at 291 s, nodding off at 301 s.
+- Extension harness (hostile page) and desktop (Electron under Xvfb: cursor IPC, dangle while dragged and thud on drop in window mode) pass.
+- Renderer pixel check identical (2,285 frames). `tsc`, `check:anims` (19 × `same`), `build:ext` and `build:desktop` pass.
+
+**Phase 1 is done.**
+
 ## 2026-09-25 · 1.4 Idle life
 
 **Antics.** Every 90–240 s (random) a resting Clawd does one of four things, never the same one twice in a row:

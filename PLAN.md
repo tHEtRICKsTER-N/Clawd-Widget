@@ -39,7 +39,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 - [x] **1.4 Idle life** (M)
   Every few minutes, a rare micro-animation: stretch, yawn, scratch, or wander across the button and back. After a long idle it dozes off (Sleepy pose plus Zzz) and wakes up when the cursor comes near. Setting: *Idle antics*.
 
-- [ ] **1.5 Idle loop sleeps between changes** (S)
+- [x] **1.5 Idle loop sleeps between changes** (S)
   The frame loop runs 60 times a second even at rest. Make it wait until the next scheduled change (blink, antic) or an input event (cursor, drag, click). Done last in this phase so it knows every wake source.
 
 ## Phase 2: Safety

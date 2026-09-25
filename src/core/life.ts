@@ -6,7 +6,7 @@
  * engine/antics.ts.
  */
 
-import { idlePose } from '../engine/animations'
+import { idleNextChange, idlePose } from '../engine/animations'
 import { ANTICS, doze, wake, type Act, type AnticId } from '../engine/antics'
 import { BODY, type Gaze } from '../engine/clawd'
 import type { Particle } from '../engine/particle'
@@ -40,6 +40,8 @@ const BUSY_NEAR = 8
 const DOZE_AFTER = 300
 /** how close counts as near: sprite px around Clawd */
 const NEAR = 24
+/** seconds between frames while dozing (its breathing, Zzz and glow are slow and pixel-stepped) */
+const DOZE_FRAME = 1 / 12
 
 /** Sprite px → client px, for where the button is right now. */
 export type SpriteToClient = (col: number, row: number) => [x: number, y: number]
@@ -49,6 +51,8 @@ export interface LifeFrame {
   /** on the clock passed to frame() */
   pulses: Pulse[]
   particles: Particle[]
+  /** seconds until any of this can change by itself (0: it's moving); pointer moves, clicks and drags aside */
+  rest: number
 }
 
 const gap = () => ANTIC_GAP[0] + Math.random() * (ANTIC_GAP[1] - ANTIC_GAP[0])
@@ -80,6 +84,11 @@ export class ClawdLife {
 
   /** `place` maps sprite px to client px (reads the button's position, so call it sparingly) */
   constructor(private place: () => SpriteToClient) {}
+
+  /** Let dt seconds pass without a frame (the renderer napped); the next frame catches up the rest. */
+  advance(dt: number) {
+    this.clock += dt
+  }
 
   /** The pointer is at (x, y) in client px. */
   lookAt(x: number, y: number) {
@@ -157,10 +166,8 @@ export class ClawdLife {
     this.updateAct(c, s, !!reaction)
 
     const act = this.act
-    const pose =
-      reaction ??
-      (act ? act.def.pose(c - act.at) : null) ??
-      idlePose(idleT, s.idleBlink, s.eyesFollow ? this.gaze(now, place) : null)
+    const gaze = s.eyesFollow ? this.gaze(now, place) : null
+    const pose = reaction ?? (act ? act.def.pose(c - act.at) : null) ?? idlePose(idleT, s.idleBlink, gaze)
     this.shownOx = pose.ox
 
     this.hearts = this.hearts.filter((h) => c - h.t0 <= HEART_LIFE)
@@ -175,13 +182,25 @@ export class ClawdLife {
 
     this.bursts = this.bursts.filter((b) => c - b.t0 < b.life * 1.15)
     const pulses = this.bursts.filter((b) => b.t0 <= c).map((b) => ({ ...b, t0: fieldT - (c - b.t0) }))
+    // anything still fading or moving means the next frame is needed right away
+    const moving = !!reaction || this.hearts.length > 0 || this.bursts.length > 0 || c - this.pokeAt < COMBO_WINDOW + 0.5 || cel < CELEBRATE
+    let rest = moving ? 0 : this.rest(c, now, idleT, s, !!gaze)
     if (act) {
       // the act's pulses are on its own clock
       const t = c - act.at
       particles.push(...act.def.particles(t))
       for (const b of act.def.pulses(t)) pulses.push({ ...b, t0: fieldT - (t - b.t0) })
+      rest = act.def === doze && !moving ? DOZE_FRAME : 0
     }
-    return { pose, pulses, particles }
+    return { pose, pulses, particles, rest }
+  }
+
+  /** Resting and nothing moving: seconds until the idle pose, the watching or the antic timers change something. */
+  private rest(c: number, now: number, idleT: number, s: Settings, watching: boolean): number {
+    let rest = idleNextChange(idleT, s.idleBlink, watching)
+    if (watching && this.pointer) rest = Math.min(rest, (this.pointer.at + WATCH_FOR - now) / 1000 + 0.001)
+    if (s.idleAntics) rest = Math.min(rest, this.nextAntic - c, this.nearAt + DOZE_AFTER - c)
+    return Math.max(0, rest)
   }
 
   /** Start, end and switch antics, dozing and waking up. `busy`: a reaction is showing. */
