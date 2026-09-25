@@ -68,6 +68,8 @@ export class ClawdLife {
   calm = false
   /** waiting for the user (status 'waiting'): a "!" over its head and no antics or dozing, until clicked */
   waiting = false
+  /** called when the pointer wakes Clawd from a doze */
+  onWake: (() => void) | null = null
   /** seconds of life so far; everything below is timed on this clock */
   private clock = 0
   /** where the pointer was last seen (client px) and when (performance.now() ms) */
@@ -129,8 +131,8 @@ export class ClawdLife {
     }
   }
 
-  /** Clawd got poked: squish, a heart, a ring that grows with the combo, a celebration every 10. */
-  poke() {
+  /** Clawd got poked: squish, a heart, a ring that grows with the combo, a celebration every 10. Returns the combo. */
+  poke(): number {
     this.touch()
     const c = this.clock
     if (c - this.pokeAt > COMBO_WINDOW) this.combo = 0
@@ -144,6 +146,7 @@ export class ClawdLife {
       this.celebrateSeed = seed
       this.bursts.push(...celebratePulses(c, 800 + (seed % 64)))
     }
+    return this.combo
   }
 
   /** A play is starting: drop whatever was going on. */
@@ -230,6 +233,7 @@ export class ClawdLife {
     }
     if (act?.def === doze && this.nearAt > act.at) {
       this.act = { def: wake, at: c }
+      this.onWake?.()
     } else if (act && c - act.at >= act.def.duration) {
       this.act = null
       this.nextAntic = c + gap()

@@ -71,6 +71,15 @@ export class ChipSound {
     }
   }
 
+  /** A little rising arpeggio (an achievement unlocked). */
+  fanfare() {
+    const c = this.context()
+    if (!c || !this.master || (c instanceof AudioContext && c.state !== 'running')) return
+    this.master.gain.value = Math.max(0, Math.min(1, this.volume))
+    const t = c.currentTime + 0.01
+    ;[523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.tone('square', f, t + i * 0.08, i === 3 ? 0.28 : 0.1, 0.16))
+  }
+
   destroy() {
     if (this.ctx instanceof AudioContext) void this.ctx.close().catch(() => {})
     this.ctx = null

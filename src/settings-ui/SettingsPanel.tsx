@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { ACHIEVEMENTS, emptyStats, normalizeStats, type Stats } from '../core/achievements'
 import type { ClawdButton } from '../core/renderer'
 import { DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, parseThemeCode, themeCode, type Colors, type Settings } from '../core/settings'
-import type { SettingsStore } from '../core/store'
+import type { SettingsStore, StatsStore } from '../core/store'
 import { ANIM_LIST } from '../engine/animations'
+import { COSMETICS, type CosmeticId } from '../engine/cosmetics'
 import { UltracodeButton } from '../UltracodeButton'
 import './settings.css'
 
@@ -15,6 +17,8 @@ export interface SettingsPanelProps {
   currentSite?: string
   /** extra host-specific controls rendered at the end */
   extra?: ReactNode
+  /** achievement stats of this host's widget; without it there's no Achievements card */
+  stats?: StatsStore
 }
 
 const COLOR_FIELDS: { key: keyof Colors; label: string; group: 'button' | 'bot' | 'effects' }[] = [
@@ -26,6 +30,72 @@ const COLOR_FIELDS: { key: keyof Colors; label: string; group: 'button' | 'bot' 
   { key: 'effectGlow', label: 'Energy glow', group: 'effects' },
   { key: 'particles', label: 'Notes & sparks', group: 'effects' },
 ]
+
+/** What's been achieved, and the wardrobe it unlocked. */
+function Achievements({ store, wearing, onWear }: { store: StatsStore; wearing: Settings['cosmetic']; onWear: (c: Settings['cosmetic']) => void }) {
+  const [st, setSt] = useState<Stats>(emptyStats)
+  useEffect(() => {
+    let alive = true
+    void store.load().then((v) => alive && setSt(normalizeStats(v)))
+    const off = store.subscribe((v) => setSt(normalizeStats(v)))
+    return () => {
+      alive = false
+      off()
+    }
+  }, [store])
+  const done = ACHIEVEMENTS.filter((a) => st.unlocked[a.id])
+  const owned = new Set<CosmeticId>(done.flatMap((a) => (a.reward ? [a.reward] : [])))
+  return (
+    <section className="sp-card">
+      <h3>
+        Achievements <span className="sp-count">{done.length} / {ACHIEVEMENTS.length}</span>
+      </h3>
+      <ul className="sp-achs">
+        {ACHIEVEMENTS.map((a) => {
+          const reward = COSMETICS.find((c) => c.id === a.reward)
+          const at = st.unlocked[a.id]
+          return (
+            <li key={a.id} className={at ? 'on' : ''} title={at ? `Unlocked ${new Date(at).toLocaleDateString()}` : 'Not yet'}>
+              <span className="sp-ach-star" aria-hidden="true">
+                {at ? '★' : '☆'}
+              </span>
+              <span className="sp-ach-text">
+                <b>{a.name}</b>
+                <small>
+                  {a.hint}
+                  {reward && ` · unlocks ${reward.icon} ${reward.name}`}
+                </small>
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      <div className="sp-sub">Wear</div>
+      <div className="sp-wear" role="radiogroup" aria-label="What Clawd wears">
+        <button role="radio" aria-checked={wearing === 'none'} className={wearing === 'none' ? 'on' : ''} onClick={() => onWear('none')}>
+          Nothing
+        </button>
+        {COSMETICS.map((c) => {
+          const has = owned.has(c.id) || wearing === c.id
+          const how = ACHIEVEMENTS.find((a) => a.reward === c.id)
+          return (
+            <button
+              key={c.id}
+              role="radio"
+              aria-checked={wearing === c.id}
+              className={wearing === c.id ? 'on' : ''}
+              disabled={!has}
+              title={has ? c.name : `Unlocked by “${how?.name}”`}
+              onClick={() => onWear(c.id)}
+            >
+              <span aria-hidden="true">{has ? c.icon : '🔒'}</span> {c.name}
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
 /** The theme as a short code to copy, and a field to paste someone else's. */
 function ShareCode({ s, onApply }: { s: Settings; onApply: (t: { colors: Colors; crt: boolean }) => void }) {
@@ -86,7 +156,7 @@ function useReducedMotion() {
   return on
 }
 
-export function SettingsPanel({ store, host, compact, currentSite, extra }: SettingsPanelProps) {
+export function SettingsPanel({ store, host, compact, currentSite, extra, stats }: SettingsPanelProps) {
   const [s, setS] = useState<Settings | null>(null)
   const reducedMotion = useReducedMotion()
   const btn = useRef<ClawdButton | null>(null)
@@ -281,6 +351,8 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
           </label>
         </div>
       </section>
+
+      {stats && <Achievements store={stats} wearing={s.cosmetic} onWear={(c) => update({ cosmetic: c })} />}
 
       <section className="sp-card">
         <h3>Sound</h3>

@@ -1,6 +1,6 @@
 import { StrictMode, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { chromeStore } from '../../src/core/store'
+import { chromeStatsStore, chromeStore } from '../../src/core/store'
 import { SettingsPanel } from '../../src/settings-ui/SettingsPanel'
 import './pages.css'
 
@@ -8,6 +8,7 @@ const isOptions = document.body.dataset.page === 'options'
 
 function Popup() {
   const store = useMemo(() => chromeStore(), [])
+  const stats = useMemo(() => chromeStatsStore(), [])
   const [site, setSite] = useState<string>()
 
   useEffect(() => {
@@ -40,6 +41,7 @@ function Popup() {
         host="extension"
         compact={!isOptions}
         currentSite={site}
+        stats={stats}
         extra={
           <p className="pg-note">
             Shortcuts: <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> show/hide on the page, <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd> play random. Change them at

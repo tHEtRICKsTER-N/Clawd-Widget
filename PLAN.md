@@ -66,7 +66,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 - [x] **4.3 Konami code and a secret animation** (S)
   ↑↑↓↓←→←→BA while the widget has focus. Never listens to keys on the host page.
 
-- [ ] **4.4 Achievements and cosmetics** (M)
+- [x] **4.4 Achievements and cosmetics** (M)
   Achievements like first play, 100 clicks, every animation played, or playing at 3 AM show a pixel toast. They unlock hats and "deal with it" shades, drawn as glyphs anchored to Clawd's head. This needs a head anchor per pose: `front()` already knows it, and the traced guitar frames need one each.
 
 - [ ] **4.5 Bug Jump mini-game** (L)

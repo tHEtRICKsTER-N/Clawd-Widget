@@ -25,6 +25,7 @@ npm run dev          # web playground at http://localhost:5178
 
 - **Click to play once**, then it rests in an idle pose (blinks, glances around). Choose **Loop** to keep it going after a click.
 - **Idle antics:** every few minutes Clawd stretches, yawns, scratches its head or wanders across the button and back. Left alone for five minutes, it nods off (Zzz) and wakes with a start when the pointer comes near. Turn it off with *Idle antics*.
+- **Achievements and a wardrobe:** eight goals pop a pixel toast when you reach them: first jam, a 10-poke combo, 100 clicks, every animation, playing at 3 AM, a certain cheat code, frequent flying, and waking Clawd up. Six of them unlock something for Clawd to wear: a party hat, a propeller cap, a crown, deal-with-it shades, a nightcap or headphones. The item sits on its head in every pose, guitar solos included. Pick one under *Achievements → Wear*.
 - **A secret:** click the widget, then type a certain famous cheat code. Gamers will know it. It only listens while the widget has focus, never to the page you're on.
 - **Poke Clawd:** a click on Clawd itself gets a squish and a heart instead of a play (the rest of the button still plays). Poke fast for a combo ("x5!") with bigger pulses on every hit, and a little celebration every 10. Turn it off with *Poke Clawd*.
 - **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
@@ -50,13 +51,15 @@ src/engine/            pure, time-driven animation engine (no DOM)
   frame.ts             what a play shows at time t (loop seams, fade-out after a play)
   reactions.ts         live reactions (drag, drop, pokes, combo, celebration) as pure functions of time
   antics.ts            idle antics (stretch, yawn, scratch, wander), dozing off and waking up
+  cosmetics.ts         things to wear, placed on each frame's head and eyes
 src/core/
   renderer.ts          ClawdButton: framework-free canvas renderer (theme, font, play/loop/idle); naps between changes at rest
   sound.ts             ChipSound: Web Audio chiptune synth, one sound per pulse kind
+  achievements.ts      stats, achievements and the tracker that saves them (debounced, merge-safe across tabs)
   life.ts              ClawdLife: what Clawd does between plays (watching, drag and drop, pokes, antics, dozing)
   widget.ts            FloatingWidget: draggable/dockable wrapper (page or desktop-window mode)
   settings.ts          Settings model, presets, fonts, colour utils
-  store.ts             storage adapters: chrome.storage / Electron IPC / localStorage
+  store.ts             storage adapters for settings and stats: chrome.storage / Electron IPC / localStorage
   fonts.ts             bundled fonts registered from embedded data (CSP-proof)
 src/settings-ui/       SettingsPanel: shared by the popup, options page, desktop settings and playground
 extension/             MV3 manifest, content script, service worker, popup/options

@@ -1,5 +1,5 @@
 // Desktop widget window: the floating button inside a transparent frameless window.
-import { desktopStore, type DesktopLayout } from '../../src/core/store'
+import { desktopStatsStore, desktopStore, type DesktopLayout } from '../../src/core/store'
 import { STATUSES, type Status } from '../../src/core/renderer'
 import { FloatingWidget } from '../../src/core/widget'
 import type { AnimId } from '../../src/engine/types'
@@ -21,6 +21,7 @@ async function main() {
     onContextMenu: (x, y) => api.showMenu(x, y),
     windowDrag: { start: api.dragStart, end: api.dragEnd },
     onPatch: (p) => void store.save({ ...w.settings, ...p }),
+    stats: desktopStatsStore(),
   })
 
   // The main process puts the toolbar strip above the button, or below it when the

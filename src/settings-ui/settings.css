@@ -55,6 +55,18 @@
 .sp-anim-icon { font-size: 16px; line-height: 1; }
 .sp-anim-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+.sp-count { color: var(--sp-muted); font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 6px; }
+.sp-achs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+.sp-achs li { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-radius: 8px; background: #1f1e25; color: var(--sp-muted); }
+.sp-achs li.on { color: var(--sp-text); background: #262139; }
+.sp-ach-star { font-size: 16px; line-height: 1.2; color: #6b6680; }
+.sp-achs li.on .sp-ach-star { color: #ffd23f; }
+.sp-ach-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sp-ach-text small { font-size: 11px; color: var(--sp-muted); }
+.sp-wear { display: flex; flex-wrap: wrap; gap: 6px; }
+.sp-wear button { background: #1f1e25; color: var(--sp-text); border: 1px solid var(--sp-line); border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.sp-wear button.on { border-color: var(--sp-accent); background: #262139; }
+.sp-wear button:disabled { opacity: .45; cursor: default; }
 .sp-preset-group { display: flex; flex-direction: column; gap: 6px; }
 .sp-share { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .sp-share-row { display: flex; gap: 6px; }

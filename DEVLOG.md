@@ -4,6 +4,50 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 4.4 Achievements and cosmetics
+
+**Achievements** (`src/core/achievements.ts`). Each shows a toast when unlocked:
+
+| achievement | how | unlocks |
+|---|---|---|
+| First jam | play for the first time | party hat |
+| Combo ×10 | poke 10 times in a row | propeller cap |
+| Clicker | 100 clicks on the widget | crown |
+| Collector | play every animation (the secret one doesn't count) | deal-with-it shades |
+| Night owl | play between 3 and 4 AM | nightcap |
+| Cheater! | the secret code | headphones |
+| Frequent flyer | drag the widget 25 times | nothing |
+| Rise and shine | wake Clawd from a nap | nothing |
+
+**Events.** `ClawdButton` reports `play` (with the hour), `click`, `poke` (with the combo, now returned by `ClawdLife.poke()`), `drag` and `wake` (from the new `ClawdLife.onWake`) through `RendererOptions.onEvent`. Only the floating widget tracks them, not the settings preview.
+
+**Stats storage.** Stats go through a new `StatsStore` per host, following the plan's storage rule:
+- Extension: `chrome.storage.local`, never sync.
+- Desktop: the app's data file, via `stats:get` / `stats:set` IPC. The main process forwards changes to its other windows.
+- Playground: `localStorage`, with same-page listeners, because the playground's widget and its settings panel share a page.
+
+`AchievementTracker` keeps the last saved stats plus *increments* since then. Each save (debounced 2 s, and on page hide) reloads the latest stats, adds the increments and writes the result. So two tabs never overwrite each other's counts: 6 + 6 clicks from two tabs at once gave exactly +12. Unlocks are only judged once the saved stats have loaded, so an early click can't re-unlock something.
+
+**Toasts.** `ClawdButton.toast(text)` swaps the label for a Press Start 2P line (fitted to the label area, `role="status"`) for 3.6 s. Toasts queue, fade (instantly under reduced motion), and play a four-note square-wave fanfare when sound is on. The text is `🏆 <name> +<reward>`; the pixel font has no ★, and the fallback star was tiny.
+
+**Cosmetics** (`src/engine/cosmetics.ts`, pure). Six are pixel art (party hat, propeller cap, crown, nightcap). Shades and headphones are generated to fit the frame. They are placed by anchors found in the frame itself:
+- `headOf(frame)` gives the head's top-centre and width. `front()` now records it exactly (`SpriteFrame.head`), because raised arms join the head's top row. The traced guitar frames use a scan: the first row with a run of at least 8 body pixels.
+- `eyesOf(frame)` gives each eye's box from the `E` pixels in the head's top 5 rows. The shades get a bar across the top, a lens per eye and a glint.
+
+The renderer draws the worn item after the frame, on the same pixel grid, including the pop-in scale. The setting `cosmetic` syncs with the other settings; stats and unlocks stay local. At the top of Jump Party and the secret leap, a hat briefly leaves the top of the button, since there's no headroom there.
+
+**Settings.** A new *Achievements* card: `n / 8`, each goal with its hint and reward, a gold star once unlocked (hover for the date), and a *Wear* picker where locked items show 🔒 and name the achievement that unlocks them. It's in the playground, the extension popup and options, and the desktop settings window.
+
+Verified:
+- Unit (17 checks): each achievement triggers exactly at its threshold; Collector ignores the secret; `mergeStats` adds counts, keeps the best combo and the earliest unlock; `normalizeStats` turns junk into zeros.
+- Playground: first click → "🏆 First jam +Party hat" toast, saved 2 s later, and the card shows 1 / 8 with the party hat wearable and the crown locked. Wearing the party hat shows it on Clawd. 10 quick pokes → "Combo ×10 +Propeller cap". The code → "Cheater! +Headphones", and the card shows 3 / 8. Two tabs with 6 clicks each → exactly +12.
+- Extension harness: 30 pokes → **0** `storage.sync` writes and one debounced `storage.local` write; Combo ×10 unlocked.
+- Desktop (Electron under Xvfb, with the settings window open): the first click toasts and the stats land in `clawd-widget.json`. The settings window shows 1 / 8, then 2 / 8 live after the code. Picking *Headphones* there puts them on the widget.
+- Wardrobe gallery: all six cosmetics across 15 poses (every traced guitar frame, jump, laptop, sleep, Thinking, the secret leap, dance, wave) sit on the head.
+- Regressions: the renderer pixel check is identical, and the nap, poke, gaze, drag, antics and sound suites pass. `tsc`, `check:anims` (30 × `same`), `build:ext` and `build:desktop` pass.
+
+Not verified: a real 3 AM play (the hour check is unit-tested).
+
 ## 2026-09-25 · 4.3 Konami code and a secret animation
 
 ↑↑↓↓←→←→BA typed while the button has focus plays a secret animation (`animations/konami.ts`):

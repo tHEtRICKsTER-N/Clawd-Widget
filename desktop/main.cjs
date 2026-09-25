@@ -78,7 +78,7 @@ if (!app.requestSingleInstanceLock({ cli })) {
 
 // ───────────────────────── persisted state ─────────────────────────
 const statePath = () => path.join(app.getPath('userData'), 'clawd-widget.json')
-let state = { settings: {}, btn: null, onTop: true, control: false }
+let state = { settings: {}, btn: null, onTop: true, control: false, stats: {} }
 
 function loadState() {
   try {
@@ -474,6 +474,13 @@ function endDrag() {
 
 ipcMain.handle('settings:get', () => state.settings)
 ipcMain.handle('settings:set', (_e, s) => setSettings(s))
+ipcMain.handle('stats:get', () => state.stats)
+ipcMain.handle('stats:set', (e, s) => {
+  state.stats = s && typeof s === 'object' ? s : {}
+  saveState()
+  // the other windows (the settings window's achievements) follow along
+  for (const w of BrowserWindow.getAllWindows()) if (w.webContents !== e.sender) w.webContents.send('stats', state.stats)
+})
 ipcMain.handle('layout:get', () => layout)
 ipcMain.on('drag:start', () => {
   if (!widget || drag) return

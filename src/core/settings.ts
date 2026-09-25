@@ -1,3 +1,4 @@
+import { COSMETICS, type CosmeticId } from '../engine/cosmetics'
 import type { AnimId } from '../engine/types'
 
 export interface Colors {
@@ -46,6 +47,8 @@ export interface Settings {
   volume: number
   /** CRT scanlines and a soft vignette over the button */
   crt: boolean
+  /** what Clawd wears (unlocked by achievements) */
+  cosmetic: CosmeticId | 'none'
   /** widget width in CSS px (height follows the 676×104 aspect) */
   size: number
   showToolbar: boolean
@@ -189,6 +192,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sound: false,
   volume: 0.5,
   crt: false,
+  cosmetic: 'none',
   size: 340,
   showToolbar: true,
   enabled: true,
@@ -218,6 +222,7 @@ export function normalize(raw: unknown): Settings {
     size: Math.min(900, Math.max(160, Number(s.size) || DEFAULT_SETTINGS.size)),
     volume: Number.isFinite(Number(s.volume)) ? Math.min(1, Math.max(0, Number(s.volume))) : DEFAULT_SETTINGS.volume,
     hiddenSites: Array.isArray(s.hiddenSites) ? s.hiddenSites.filter((x) => typeof x === 'string') : [],
+    cosmetic: COSMETICS.some((c) => c.id === s.cosmetic) ? (s.cosmetic as CosmeticId) : 'none',
     colors,
   }
 }

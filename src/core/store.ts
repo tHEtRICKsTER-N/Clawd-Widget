@@ -69,6 +69,75 @@ export function chromeStore(): SettingsStore {
   }
 }
 
+/**
+ * Where achievement stats live (see achievements.ts). Not settings: they change often,
+ * so in the extension they go to chrome.storage.local, never to the rate-limited sync.
+ */
+export interface StatsStore {
+  load(): Promise<unknown>
+  save(stats: unknown): Promise<void>
+  /** called when the stats change elsewhere (another tab, the settings window) */
+  subscribe(cb: (stats: unknown) => void): () => void
+}
+
+const STATS_KEY = 'clawdStats'
+/** same-page listeners (the storage event only reaches other tabs) */
+const statsListeners = new Set<(s: unknown) => void>()
+
+export function localStatsStore(): StatsStore {
+  return {
+    async load() {
+      try {
+        return JSON.parse(localStorage.getItem(STATS_KEY) || '{}')
+      } catch {
+        return {}
+      }
+    },
+    async save(s) {
+      try {
+        localStorage.setItem(STATS_KEY, JSON.stringify(s))
+      } catch {
+        /* storage unavailable */
+      }
+      statsListeners.forEach((cb) => cb(s))
+    },
+    subscribe(cb) {
+      const on = (e: StorageEvent) => {
+        if (e.key === STATS_KEY && e.newValue) cb(JSON.parse(e.newValue))
+      }
+      window.addEventListener('storage', on)
+      statsListeners.add(cb)
+      return () => {
+        window.removeEventListener('storage', on)
+        statsListeners.delete(cb)
+      }
+    },
+  }
+}
+
+export function chromeStatsStore(): StatsStore {
+  return {
+    async load() {
+      return (await chrome.storage.local.get(STATS_KEY))[STATS_KEY] ?? {}
+    },
+    async save(s) {
+      await chrome.storage.local.set({ [STATS_KEY]: s })
+    },
+    subscribe(cb) {
+      const on = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
+        if (area === 'local' && changes[STATS_KEY]) cb(changes[STATS_KEY].newValue)
+      }
+      chrome.storage.onChanged.addListener(on)
+      return () => chrome.storage.onChanged.removeListener(on)
+    },
+  }
+}
+
+export function desktopStatsStore(): StatsStore {
+  const api = window.clawdDesktop!
+  return { load: () => api.getStats(), save: (s) => api.setStats(s), subscribe: (cb) => api.onStats(cb) }
+}
+
 /** API exposed by desktop/preload.cjs */
 export interface DesktopLayout {
   /** where the hover toolbar goes: above the button, or below it near the top of the screen */
@@ -92,6 +161,9 @@ export interface DesktopBridge {
   showMenu(x: number, y: number): void
   hide(): void
   onCommand(cb: (cmd: string, arg?: string) => void): () => void
+  getStats(): Promise<unknown>
+  setStats(s: unknown): Promise<void>
+  onStats(cb: (s: unknown) => void): () => void
 }
 
 declare global {

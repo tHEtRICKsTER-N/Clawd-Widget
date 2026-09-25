@@ -10,9 +10,12 @@
  * A click (pointer moved < 5px) plays the animation; a drag only moves.
  */
 
+import { COSMETICS } from '../engine/cosmetics'
 import type { AnimId } from '../engine/types'
+import { AchievementTracker } from './achievements'
 import { BUTTON_CSS, ClawdButton } from './renderer'
 import type { Settings } from './settings'
+import type { StatsStore } from './store'
 
 export interface Dock {
   h: 'left' | 'right'
@@ -82,6 +85,8 @@ export interface WidgetOptions {
   onPlay?: (id: AnimId) => void
   /** save a settings change made from the widget itself (the sound button); without it there's no sound button */
   onPatch?: (patch: Partial<Settings>) => void
+  /** where achievement stats are kept; without it there are no achievements */
+  stats?: StatsStore
 }
 
 export class FloatingWidget {
@@ -93,6 +98,7 @@ export class FloatingWidget {
   private dock: Dock
   private _settings: Settings
   private soundBtn: HTMLButtonElement | null = null
+  private tracker: AchievementTracker | null = null
 
   constructor(opts: WidgetOptions) {
     this.opts = opts
@@ -152,7 +158,13 @@ export class FloatingWidget {
     wrap.appendChild(slot)
     this.shadow.appendChild(wrap)
 
-    this.button = new ClawdButton(slot, this._settings, { onPlay: opts.onPlay })
+    if (opts.stats) {
+      this.tracker = new AchievementTracker(opts.stats, (a) => {
+        const reward = COSMETICS.find((c) => c.id === a.reward)
+        this.button.toast(`🏆 ${a.name}${reward ? ` +${reward.name}` : ''}`)
+      })
+    }
+    this.button = new ClawdButton(slot, this._settings, { onPlay: opts.onPlay, onEvent: (e) => this.tracker?.event(e) })
     this.bindPointer(slot)
     this.button.el.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -207,6 +219,7 @@ export class FloatingWidget {
   }
 
   destroy() {
+    this.tracker?.destroy()
     window.removeEventListener('resize', this.onResize)
     this.button.destroy()
     this.host.remove()

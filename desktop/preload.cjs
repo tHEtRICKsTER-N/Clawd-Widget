@@ -23,4 +23,8 @@ contextBridge.exposeInMainWorld('clawdDesktop', {
   openSettings: () => ipcRenderer.send('open-settings'),
   showMenu: (x, y) => ipcRenderer.send('menu', x, y),
   hide: () => ipcRenderer.send('hide'),
+  // achievement stats, kept in the app's data file
+  getStats: () => ipcRenderer.invoke('stats:get'),
+  setStats: (s) => ipcRenderer.invoke('stats:set', s),
+  onStats: (cb) => on('stats', cb),
 })

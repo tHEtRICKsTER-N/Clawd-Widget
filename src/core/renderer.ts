@@ -8,6 +8,7 @@
  */
 
 import { ANIMATIONS, pickRandom } from '../engine/animations'
+import { COSMETIC_PALETTE, wear } from '../engine/cosmetics'
 import { lingerFrame, playFrame } from '../engine/frame'
 import { CELL, CELL_INNER, COLS, REF_H, REF_W, ROWS, computeField, createField } from '../engine/grid'
 import type { Particle } from '../engine/particle'
@@ -15,6 +16,7 @@ import { calmPulses, type Pulse } from '../engine/pulses'
 import { PALETTE, SPRITE_ORIGIN, SPRITE_UNIT } from '../engine/sprites'
 import { darkMix, introGlow } from '../engine/timeline'
 import type { AnimationDef, AnimId, Pose } from '../engine/types'
+import type { LifeEvent } from './achievements'
 import { ensureFont } from './fonts'
 import { ClawdLife, type SpriteToClient } from './life'
 import { ChipSound } from './sound'
@@ -31,7 +33,12 @@ export const BUTTON_CSS = `
 .cw-crt{display:none}
 .cw-btn.crt .cw-crt{display:block}
 .cw-label{position:absolute;top:50%;transform:translateY(-52%);white-space:nowrap;pointer-events:none;line-height:1;
-  font-style:normal;text-transform:none;text-shadow:none;letter-spacing:-0.01em;margin:0;padding:0}
+  font-style:normal;text-transform:none;text-shadow:none;letter-spacing:-0.01em;margin:0;padding:0;transition:opacity .25s}
+.cw-toast{position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap;pointer-events:none;line-height:1.3;margin:0;padding:0;
+  font-family:'Clawd Press Start 2P',monospace;font-weight:400;font-style:normal;letter-spacing:0;text-transform:none;opacity:0;transition:opacity .25s}
+.cw-btn.toasting .cw-label{opacity:0}
+.cw-btn.toasting .cw-toast{opacity:1}
+@media (prefers-reduced-motion:reduce){.cw-label,.cw-toast{transition:none}}
 `
 
 const PRESS_COLOR = '#1c1e1b'
@@ -47,6 +54,8 @@ export interface RendererOptions {
   onEnd?: () => void
   /** called whenever a play starts (with the resolved animation id) */
   onPlay?: (id: AnimId) => void
+  /** plays, clicks, pokes, drags and wake-ups, for achievements */
+  onEvent?: (e: LifeEvent) => void
 }
 
 /**
@@ -77,6 +86,9 @@ export class ClawdButton {
   private intro: HTMLSpanElement
   private dark: HTMLSpanElement
   private label: HTMLSpanElement
+  private toastEl: HTMLSpanElement
+  private toasts: string[] = []
+  private toastTimer = 0
   private crt: HTMLSpanElement
   private cGrid: HTMLCanvasElement
   private cSprite: HTMLCanvasElement
@@ -152,6 +164,8 @@ export class ClawdButton {
     this.cSprite = canvas()
     this.cFx = canvas()
     this.label = span('cw-label')
+    this.toastEl = span('cw-toast')
+    this.toastEl.setAttribute('role', 'status')
     this.crt = span('cw-layer cw-crt')
     this.g = this.cGrid.getContext('2d')!
     this.sp = this.cSprite.getContext('2d')!
@@ -164,6 +178,7 @@ export class ClawdButton {
     el.addEventListener('keydown', this.onKey)
     this.motion?.addEventListener('change', this.onMotion)
     this.life.calm = this.calm
+    this.life.onWake = () => this.opts.onEvent?.({ type: 'wake' })
     this.raf = requestAnimationFrame(this.tick)
   }
 
@@ -196,6 +211,7 @@ export class ClawdButton {
     this.linger = null
     this.life.reset()
     this.opts.onPlay?.(resolved)
+    this.opts.onEvent?.({ type: 'play', id: resolved, hour: new Date().getHours() })
   }
 
   /**
@@ -205,8 +221,30 @@ export class ClawdButton {
   click(x: number, y: number) {
     this.wake()
     this.unlockSound()
-    if (this.s.pokes && this.mode === 'idle' && !this.controlled && this.life.hits(x, y)) this.life.poke()
+    this.opts.onEvent?.({ type: 'click' })
+    if (this.s.pokes && this.mode === 'idle' && !this.controlled && this.life.hits(x, y)) this.opts.onEvent?.({ type: 'poke', combo: this.life.poke() })
     else this.play()
+  }
+
+  /** A short message in the label's place for a few seconds (e.g. an unlocked achievement); queued. */
+  toast(text: string) {
+    this.toasts.push(text)
+    if (!this.toastTimer) this.nextToast()
+  }
+
+  private nextToast() {
+    const text = this.toasts.shift()
+    if (text === undefined) {
+      this.el.classList.remove('toasting')
+      this.toastTimer = 0
+      return
+    }
+    this.toastEl.textContent = text
+    this.fitToast()
+    void ensureFont('press').then(() => this.fitToast())
+    this.el.classList.add('toasting')
+    if (this.s.sound) this.chip().fanfare()
+    this.toastTimer = window.setTimeout(() => this.nextToast(), 3600)
   }
 
   /**
@@ -249,6 +287,7 @@ export class ClawdButton {
    */
   setDragging(on: boolean) {
     this.wake()
+    if (on) this.opts.onEvent?.({ type: 'drag' })
     if (!on) this.life.drag(false)
     else if (this.s.dragReact && this.mode === 'idle' && !this.controlled) this.life.drag(true)
   }
@@ -277,6 +316,7 @@ export class ClawdButton {
   destroy() {
     cancelAnimationFrame(this.raf)
     clearTimeout(this.nap)
+    clearTimeout(this.toastTimer)
     this.sound?.destroy()
     window.removeEventListener('pointermove', this.onPointerMove, { capture: true })
     this.motion?.removeEventListener('change', this.onMotion)
@@ -349,7 +389,7 @@ export class ClawdButton {
       'radial-gradient(ellipse 75% 95% at 50% 50%, transparent 60%, rgba(0,0,0,.35) 100%)',
     ].join(',')
 
-    this.palette = { ...PALETTE, O: c.bot, o: darken(c.bot, 0.2) }
+    this.palette = { ...PALETTE, ...COSMETIC_PALETTE, O: c.bot, o: darken(c.bot, 0.2) }
     this.fxColors = {
       fx: c.particles,
       fxLight: mix(c.particles, '#ffffff', 0.45),
@@ -370,6 +410,18 @@ export class ClawdButton {
     this.fitLabel()
     if (fontChanged) void ensureFont(s.font).then(() => this.fitLabel())
     this.drawn = null
+  }
+
+  private fitToast() {
+    const kk = this.s.size / REF_W
+    const T = this.toastEl.style
+    T.left = `${LABEL_LEFT * kk}px`
+    T.color = this.s.colors.text
+    const base = 14 * kk
+    T.fontSize = `${base}px`
+    const avail = (LABEL_RIGHT - LABEL_LEFT) * kk
+    const w = this.toastEl.scrollWidth
+    if (w > avail && w > 0) T.fontSize = `${Math.max(6, (base * avail) / w)}px`
   }
 
   private fitLabel() {
@@ -629,6 +681,15 @@ export class ClawdButton {
         const rw = fr.dy + r + p.oy
         const [x0, y0] = this.px(col, rw, p.scale)
         const [x1, y1] = this.px(col + 1, rw + 1, p.scale)
+        s.fillStyle = this.palette[ch] ?? '#f0f'
+        s.fillRect(x0, y0, x1 - x0, y1 - y0)
+      }
+    }
+    // whatever Clawd is wearing, placed on this frame's head
+    if (this.s.cosmetic !== 'none') {
+      for (const [x, y, ch] of wear(this.s.cosmetic, fr)) {
+        const [x0, y0] = this.px(x + p.ox, y + p.oy, p.scale)
+        const [x1, y1] = this.px(x + p.ox + 1, y + p.oy + 1, p.scale)
         s.fillStyle = this.palette[ch] ?? '#f0f'
         s.fillRect(x0, y0, x1 - x0, y1 - y0)
       }

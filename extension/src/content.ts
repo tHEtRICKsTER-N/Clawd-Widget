@@ -5,7 +5,7 @@
  */
 
 import type { Settings } from '../../src/core/settings'
-import { chromeStore } from '../../src/core/store'
+import { chromeStatsStore, chromeStore } from '../../src/core/store'
 import { DEFAULT_DOCK, FloatingWidget, type Dock } from '../../src/core/widget'
 import type { AnimId } from '../../src/engine/types'
 
@@ -47,6 +47,7 @@ function sync() {
     onPatch: (p) => {
       if (settings) void store.save({ ...settings, ...p })
     },
+    stats: chromeStatsStore(),
   })
 }
 

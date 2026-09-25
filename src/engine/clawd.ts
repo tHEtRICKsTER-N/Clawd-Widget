@@ -139,7 +139,13 @@ export function front(p: FrontPose = {}): SpriteFrame {
   if (first < 0) first = 0
   let last = H - 1
   while (last > first && g[last].every((c) => c === '.')) last--
-  const frame: SpriteFrame = { dx: 0, dy: TOP + first, rows: g.slice(first, last + 1).map((r) => r.join('')) }
+  const frame: SpriteFrame = {
+    dx: 0,
+    dy: TOP + first,
+    rows: g.slice(first, last + 1).map((r) => r.join('')),
+    // the body's top row: raised arms can't be mistaken for the head
+    head: { x: X + 4 + 17 / 2, y: b, w: 17 },
+  }
   cache.set(key, frame)
   return frame
 }
