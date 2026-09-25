@@ -67,6 +67,7 @@ Create `src/engine/animations/<name>.ts` exporting an `AnimationDef` (`duration`
 
 - **Reference compare** tab: speed 25 / 50 / 100 / 200 % (keys 1–4), play/pause (space), frame step (←/→), scrubber, and the reference clip stacked, overlaid or difference-blended. `?t=7.3` opens paused at that time.
 - `?sheet=<animation>&step=0.15`: contact sheet of one animation.
+- `npm run check:anims`: proves the existing animations still draw exactly the same (sprite, particles and energy grid at 60 fps, checked against `scripts/anim-snapshot.json`). After adding a new animation or changing one on purpose, run `npm run check:anims -- --update`.
 - `dev/ext-harness.html`: loads the built `content.js` into a deliberately hostile page with a stubbed `chrome.*`.
 - `scripts/dump-field.ts` / `dump-sprite.ts`: dump grid/sprite data for offline comparison with reference frames.
 
