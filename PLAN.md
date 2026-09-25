@@ -74,7 +74,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 
 ## Phase 5: For devs and creators
 
-- [ ] **5.1 Export GIF, WebM and sprite sheet** (M)
+- [x] **5.1 Export GIF, WebM and sprite sheet** (M)
   Any animation, in the current theme, at any size. `setControlled` already renders exact frames.
 - [ ] **5.2 `<clawd-button>` web component on npm** (M)
   Game devs can drop it onto an itch.io page as their Play button.

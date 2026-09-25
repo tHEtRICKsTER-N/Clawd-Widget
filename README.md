@@ -32,6 +32,7 @@ npm run dev          # web playground at http://localhost:5178
 - **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
 - **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, Thinking, or **Random**, which picks a different one on every click.
 - **Customizable:** label text, font (Inter, Space Grotesk, JetBrains Mono, two pixel fonts, System, Serif, or any installed font), bold, and colors for the background, background glow, text, bot, energy cells, energy glow and particles. Includes 15 presets (7 classics plus Game Boy DMG, PICO-8, Virtual Boy, Synthwave, Dracula, Catppuccin, Tokyo Night and Nord), an optional CRT scanline overlay, and 4 sizes.
+- **Export GIF, WebM or a sprite sheet:** any animation in your current look (colours, font, label, CRT, even what Clawd is wearing), at S/M/L/XL and 12–50 fps. *Seamless loop* exports just the looping part so it repeats without a jump. Frames are exact, since the engine is a function of time, and the export matches what you see on screen. It's in the *Export* card in the playground, the extension's options page and the desktop settings. WebM needs a Chromium browser.
 - **Share codes:** your theme (colours and CRT) as one short string like `clawd:OiZfWDee____2HZP7-j_oHb48MNaAA`. Copy it from the Colors card, and paste someone else's there to use it.
 - **Chiptune sound (off by default):** square-wave and noise blips made on the fly with Web Audio (no audio files), one for every pulse of the grid: strums pluck, power chords crunch, landings thump, twinkles blip. Turn it on in *Sound* (with a volume slider), from the speaker in the hover toolbar, or from the desktop right-click menu.
 - **Reduced motion:** when your system asks for reduced motion, the grid flashes at most 3 times a second (a burst of rapid strums becomes one pulse) and less brightly, the tap flash is skipped, and Clawd's eyes change direction at most every 0.6 s. Nothing changes for everyone else.
@@ -58,6 +59,7 @@ src/core/
   sound.ts             ChipSound: Web Audio chiptune synth, one sound per pulse kind
   achievements.ts      stats, achievements and the tracker that saves them (debounced, merge-safe across tabs)
   game.ts              Bug Jump: the mini-game played on the button
+  export.ts            GIF (gifenc) / WebM (WebCodecs VP9 + a small WebM writer) / PNG sprite-sheet export
   life.ts              ClawdLife: what Clawd does between plays (watching, drag and drop, pokes, antics, dozing)
   widget.ts            FloatingWidget: draggable/dockable wrapper (page or desktop-window mode)
   settings.ts          Settings model, presets, fonts, colour utils

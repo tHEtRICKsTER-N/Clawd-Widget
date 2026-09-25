@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ACHIEVEMENTS, emptyStats, normalizeStats, type Stats } from '../core/achievements'
+import { canExportWebm, exportGif, exportSheet, exportWebm, type ExportFormat } from '../core/export'
 import type { ClawdButton } from '../core/renderer'
 import { DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, parseThemeCode, themeCode, type Colors, type Settings } from '../core/settings'
 import type { SettingsStore, StatsStore } from '../core/store'
 import { ANIM_LIST } from '../engine/animations'
 import { COSMETICS, type CosmeticId } from '../engine/cosmetics'
+import type { AnimId } from '../engine/types'
 import { UltracodeButton } from '../UltracodeButton'
 import './settings.css'
 
@@ -94,6 +96,105 @@ function Achievements({ store, wearing, onWear }: { store: StatsStore; wearing: 
           )
         })}
       </div>
+    </section>
+  )
+}
+
+/** Save any animation, in the current look, as a GIF, a WebM video or a PNG sprite sheet. */
+function Exporter({ s }: { s: Settings }) {
+  const [anim, setAnim] = useState<AnimId>(s.animation === 'random' ? 'guitar' : s.animation)
+  const [format, setFormat] = useState<ExportFormat>('gif')
+  const [width, setWidth] = useState(s.size)
+  const [fps, setFps] = useState(25)
+  const [loop, setLoop] = useState(true)
+  const [busy, setBusy] = useState<number | null>(null)
+  const [note, setNote] = useState('')
+  const webmOk = canExportWebm()
+  const go = async () => {
+    setBusy(0)
+    setNote('')
+    const o = { anim, width, fps, loop }
+    const name = `clawd-${anim}${loop ? '-loop' : ''}-${width}px-${fps}fps`
+    try {
+      let blob: Blob
+      let file: string
+      if (format === 'gif') [blob, file] = [await exportGif(s, o, setBusy), `${name}.gif`]
+      else if (format === 'webm') [blob, file] = [await exportWebm(s, o, setBusy), `${name}.webm`]
+      else {
+        const r = await exportSheet(s, o, setBusy)
+        blob = r.blob
+        file = `${name}-${r.frames}f-${r.cols}cols.png`
+      }
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = file
+      a.click()
+      window.setTimeout(() => URL.revokeObjectURL(a.href), 60_000)
+      setNote(`Saved ${file} (${(blob.size / 1024).toFixed(0)} KB)`)
+    } catch (e) {
+      setNote(`Couldn't export: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <section className="sp-card">
+      <h3>Export</h3>
+      <div className="sp-grid2">
+        <label className="sp-field">
+          <span>Animation</span>
+          <select value={anim} onChange={(e) => setAnim(e.target.value as AnimId)}>
+            {ANIM_LIST.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.icon} {a.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="sp-field">
+          <span>Frames per second</span>
+          <select value={fps} onChange={(e) => setFps(Number(e.target.value))}>
+            {[12, 20, 25, 30, 50].map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="sp-row">
+        <div className="sp-seg" role="radiogroup" aria-label="Format">
+          {(
+            [
+              ['gif', 'GIF'],
+              ['webm', 'WebM'],
+              ['sheet', 'Sprite sheet'],
+            ] as const
+          ).map(([f, label]) => (
+            <button key={f} role="radio" aria-checked={format === f} className={format === f ? 'on' : ''} disabled={f === 'webm' && !webmOk} onClick={() => setFormat(f)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="sp-seg" role="radiogroup" aria-label="Export size">
+          {SIZES.map((z) => (
+            <button key={z.value} role="radio" aria-checked={width === z.value} className={width === z.value ? 'on' : ''} onClick={() => setWidth(z.value)}>
+              {z.label}
+            </button>
+          ))}
+        </div>
+        <label className="sp-check" title="Just the looping part, so it repeats without a jump (otherwise one play from the start)">
+          <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
+          Seamless loop
+        </label>
+      </div>
+      <div className="sp-row">
+        <button className="sp-btn primary" disabled={busy !== null} onClick={() => void go()}>
+          {busy === null ? '⤓ Export' : `Rendering… ${Math.round(busy * 100)}%`}
+        </button>
+        <span className="sp-hint">{note || `${width} × ${Math.round((width * 104) / 676)} px, in your current colours, font and label`}</span>
+      </div>
+      {!webmOk && <span className="sp-hint">WebM needs a browser with a video encoder (Chrome, Edge).</span>}
     </section>
   )
 }
@@ -354,6 +455,8 @@ export function SettingsPanel({ store, host, compact, currentSite, extra, stats 
       </section>
 
       {stats && <Achievements store={stats} wearing={s.cosmetic} onWear={(c) => update({ cosmetic: c })} />}
+
+      {!compact && <Exporter s={s} />}
 
       <section className="sp-card">
         <h3>Sound</h3>

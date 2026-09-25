@@ -59,6 +59,8 @@ export interface RendererOptions {
   onEvent?: (e: LifeEvent) => void
   /** the saved Bug Jump high score */
   bestScore?: () => number
+  /** fixed device-pixel ratio (exports render at exactly 1:1); default: the screen's */
+  dpr?: number
 }
 
 /**
@@ -134,6 +136,8 @@ export class ClawdButton {
   private soundClock = 0
   /** pulses that have sounded recently, so each sounds once */
   private heard: { kind: string; seed: number; at: number }[] = []
+  /** opacity of the pressed-dark flash and the intro glow on screen */
+  private overlay = { dark: 0, intro: 0 }
   /** how much of the Konami code has been typed */
   private konamiAt = 0
   /** Bug Jump, while it's on */
@@ -496,7 +500,7 @@ export class ClawdButton {
   }
 
   private resize() {
-    const dpr = Math.max(1, Math.round(window.devicePixelRatio || 1))
+    const dpr = this.screenDpr()
     const W = Math.round(this.s.size * dpr)
     const H = Math.round(((this.s.size * REF_H) / REF_W) * dpr)
     if (W === this.W && H === this.H && dpr === this.dpr) return
@@ -567,7 +571,7 @@ export class ClawdButton {
 
   /** Advance and draw one frame; returns seconds until anything can change by itself (0: moving). */
   private step(now: number, dt: number): number {
-    if (Math.max(1, Math.round(window.devicePixelRatio || 1)) !== this.dpr) this.resize()
+    if (this.screenDpr() !== this.dpr) this.resize()
 
     let anim: AnimationDef | null = null
     let t = 0
@@ -641,6 +645,7 @@ export class ClawdButton {
     if (still && d && d.frame === pose.frame && d.ox === pose.ox && d.oy === pose.oy && d.scale === pose.scale && d.opacity === pose.opacity) return rest
     this.drawn = still ? pose : null
 
+    this.overlay = { dark: dm, intro: ig }
     this.dark.style.opacity = String(dm)
     this.intro.style.opacity = String(ig)
     this.drawGrid(pulses, fieldT)
@@ -698,6 +703,115 @@ export class ClawdButton {
       chip.volume = this.s.volume
       chip.pulse(p.kind, p.strength, p.seed)
     }
+  }
+
+  private screenDpr() {
+    return this.opts.dpr ?? Math.max(1, Math.round(window.devicePixelRatio || 1))
+  }
+
+  /** Draw the frame at time t of an animation right now (for exports; see composite). */
+  renderAt(t: number, anim: AnimId) {
+    this.controlled = { t, anim }
+    this.step(performance.now(), 0)
+  }
+
+  /**
+   * Paint the whole button as it looks now onto ctx (sized W × H device px): the CSS layers
+   * (base colour, gradients, intro glow, pressed flash), the three canvases, the label and
+   * the CRT overlay, clipped to the rounded corners. Used to export frames.
+   */
+  composite(ctx: CanvasRenderingContext2D) {
+    const { W, H } = this
+    const s = this.s
+    const c = s.colors
+    const bgc = c.background
+    const kk = this.k
+    ctx.save()
+    ctx.clearRect(0, 0, W, H)
+    ctx.beginPath()
+    ctx.roundRect(0, 0, W, H, 32 * kk)
+    ctx.clip()
+    // an ellipse-shaped radial gradient (CSS "rx ry at cx cy"), stops given as [offset, colour]
+    const ellipse = (cx: number, cy: number, rx: number, ry: number, stops: [number, string][]) => {
+      ctx.save()
+      ctx.translate(cx, cy)
+      ctx.scale(rx, ry)
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1)
+      for (const [o, col] of stops) g.addColorStop(o, col)
+      ctx.fillStyle = g
+      ctx.fillRect(-cx / rx, -cy / ry, W / rx, H / ry)
+      ctx.restore()
+    }
+    ctx.fillStyle = darken(bgc, 0.3)
+    ctx.fillRect(0, 0, W, H)
+    const lin = ctx.createLinearGradient(0, 0, W, 0)
+    ;(
+      [
+        [0, darken(bgc, 0.36)],
+        [0.22, darken(bgc, 0.28)],
+        [0.44, darken(bgc, 0.2)],
+        [0.64, darken(bgc, 0.08)],
+        [0.78, bgc],
+        [0.9, lighten(bgc, 0.03)],
+        [1, darken(bgc, 0.06)],
+      ] as [number, string][]
+    ).forEach(([o, col]) => lin.addColorStop(o, col))
+    ctx.fillStyle = lin
+    ctx.fillRect(0, 0, W, H)
+    ellipse(0.888 * W, H / 2, 0.125 * W, 1.05 * H, [
+      [0, c.glow],
+      [0.42, rgba(c.glow, 0.62)],
+      [1, rgba(c.glow, 0)],
+    ])
+    if (this.overlay.intro > 0) {
+      ctx.globalAlpha = this.overlay.intro
+      ctx.fillStyle = rgba(lighten(bgc, 0.35), 0.24)
+      ctx.fillRect(0, 0, W, H)
+      ellipse(0.888 * W, H / 2, 0.16 * W, 1.2 * H, [
+        [0, rgba(lighten(c.glow, 0.35), 0.3)],
+        [1, rgba(lighten(c.glow, 0.35), 0)],
+      ])
+      ctx.globalAlpha = 1
+    }
+    if (this.overlay.dark > 0) {
+      ctx.globalAlpha = this.overlay.dark
+      ctx.fillStyle = PRESS_COLOR
+      ctx.fillRect(0, 0, W, H)
+      ctx.globalAlpha = 1
+    }
+    ctx.drawImage(this.cGrid, 0, 0)
+    ctx.drawImage(this.cSprite, 0, 0)
+    ctx.drawImage(this.cFx, 0, 0)
+    // the label, where the browser laid it out: CSS puts the baseline at the box top plus
+    // half the leading (line-height minus the font's ascent + descent) plus the ascent
+    const fs = parseFloat(this.label.style.fontSize) * this.dpr
+    const box = this.label.getBoundingClientRect()
+    const btn = this.el.getBoundingClientRect()
+    ctx.font = `${fontWeight(s)} ${fs}px ${fontFamily(s)}`
+    ctx.fillStyle = c.text
+    ctx.textBaseline = 'alphabetic'
+    // like the CSS label's letter-spacing: -0.01em (where canvas supports it)
+    if ('letterSpacing' in ctx) ctx.letterSpacing = `${-0.01 * fs}px`
+    const m = ctx.measureText(s.text)
+    const top = (box.top - btn.top) * this.dpr
+    const lead = (box.height * this.dpr - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2
+    ctx.fillText(s.text, (box.left - btn.left) * this.dpr, top + lead + m.fontBoundingBoxAscent)
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px'
+    if (s.crt) {
+      const line = Math.max(2, Math.round((3 * s.size) / 340)) * this.dpr
+      ctx.fillStyle = 'rgba(0,0,0,.3)'
+      for (let y = 0; y < H; y += line) ctx.fillRect(0, y, W, line / 3)
+      ellipse(W / 2, H / 2, 0.75 * W, 0.95 * H, [
+        [0.6, 'rgba(0,0,0,0)'],
+        [1, 'rgba(0,0,0,.35)'],
+      ])
+    }
+    ctx.restore()
+  }
+
+  /** Size of the canvases, device px. */
+  get pixelSize() {
+    return { width: this.W, height: this.H }
   }
 
   /** Sprite px → client px for where the button is right now. */

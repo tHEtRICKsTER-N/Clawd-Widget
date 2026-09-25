@@ -4,6 +4,37 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 5.1 Export GIF, WebM and sprite sheet
+
+An *Export* card in the settings: animation, format (GIF / WebM / sprite sheet), size (S/M/L/XL), fps (12/20/25/30/50) and *Seamless loop*, which exports just the loop section from `duration` to `duration + span`, seam carry-over included, so it repeats without a jump. It uses the settings being edited: colours, font, label, CRT and what Clawd wears. The card isn't in the compact extension popup, which can close mid-export; it is in the extension's options page, the playground and the desktop settings.
+
+**Frames** (`src/core/export.ts`). An off-screen `ClawdButton` at the export width with the new `dpr: 1` option (1:1 pixels on any screen). `renderAt(t, anim)` draws the exact frame synchronously, and `composite(ctx)` paints the whole button onto one canvas, rebuilding the CSS layers:
+- the base colour and linear gradient;
+- the elliptical radial glows (a scaled circular gradient);
+- the intro glow and pressed flash at their current opacity;
+- the three canvases;
+- the label;
+- CRT scanlines and vignette;
+- all clipped to the rounded corners.
+
+The label is placed where the browser laid out the real span: box top, plus half the leading (line-height minus the font's ascent and descent), plus the ascent, with the same `letter-spacing: -0.01em`.
+
+**Accuracy.** Composited frames were compared with screenshots of the real button:
+- Before placing the label from the real span, it sat 0–2 px high depending on the font. Without the letter-spacing, glyph edges differed.
+- Final: over 6 cases (the flash, a big pulse, idle, CRT, Game Boy DMG, the Press Start font), the mean difference is 0.18–0.25/255 and the maximum is 15 (gradient dithering), with 0 pixels off by more than 24. CRT is 1.76 mean, with 0.28% of pixels off by more than 24.
+
+**Encoders.**
+- **GIF**: `gifenc` (MIT, about 10 KB bundled; added as a dependency, with a small type declaration in `src/types/gifenc.d.ts`). Each frame gets its own palette, and there's a 1-bit alpha so the rounded corners are see-through. It loops forever.
+- **WebM**: the browser's VP9 encoder (WebCodecs) and a minimal WebM writer written here: an EBML header, and a Segment with Info (duration), one VP9 track and a Cluster per keyframe (every 2 s) of SimpleBlocks. There's no extra dependency; `webm-muxer` is deprecated and its successor is 10 MB and MPL. It runs faster than real time. Sizes are rounded down to even numbers for VP9, and the button is only offered where `VideoEncoder` exists.
+- **Sprite sheet**: PNG, 10 frames per row. The file name says the frame size, fps, frame count and columns.
+
+Verified (Chromium, through the Export card, catching each saved file):
+- **GIF**, Guitar Jam loop at M, 25 fps: `ImageDecoder` reads 92 frames (3.675 s × 25), 340×52, a transparent corner, an opaque middle, and infinite repetition. 351 KB, made in 0.6 s.
+- **WebM**, Jump Party at L, 30 fps: a `<video>` element loads it at 466×72 with a duration of 3.5 s. Seeked to 1 s, it shows the frame (33k lit pixels), and it plays to the end. 424 KB, made in 0.4 s.
+- **Sprite sheet**, Hello Wave at S, 12 fps: 2400×148, which is 40 frames in 10 columns, as the name says.
+- Desktop settings window (Electron): the Export card is there, `VideoEncoder` supports VP9 and the WebM button is enabled. Not clicked through, because a download there opens the native save dialog.
+- Regressions: the renderer pixel check is identical, and the nap, gaze and Bug Jump suites pass. `tsc`, `check:anims`, `build:ext` and `build:desktop` pass.
+
 ## 2026-09-25 · 4.5 Bug Jump mini-game
 
 A tiny runner played on the button (`src/core/game.ts`, `BugJump`). It opens from **🎮 in the hover toolbar**, and the secret code now plays its animation once and then opens the game (the plan's "and the Konami code").
