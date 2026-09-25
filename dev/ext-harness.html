@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Extension harness</title>
+<!-- Dev harness: loads the BUILT content script (dist-extension/content.js) into an ordinary page with a
+     stubbed chrome.* API, to test isolation from hostile page CSS, docking and live settings updates. -->
+<style>
+  /* deliberately hostile page styles: the widget must not be affected */
+  * { font-family: 'Comic Sans MS', cursive !important; color: #0a0 !important; letter-spacing: 3px !important; box-sizing: content-box !important; }
+  div, span, canvas { border-radius: 0 !important; }
+  body { margin: 0; background: #f4f1e8; }
+  header { position: sticky; top: 0; z-index: 99999; background: #333; padding: 14px; }
+  main { padding: 24px; max-width: 700px; line-height: 1.8; }
+  #log { position: fixed; left: 8px; top: 60px; font: 11px monospace; background: #fff; padding: 6px; max-width: 360px; }
+</style>
+<script>
+  // --- minimal chrome.* stub (in-memory storage + events) ---
+  const listeners = { storage: [], message: [] }
+  const areas = { sync: {}, local: {} }
+  const mkArea = (name) => ({
+    async get(k) { return typeof k === 'string' ? { [k]: areas[name][k] } : { ...areas[name] } },
+    async set(obj) {
+      const changes = {}
+      for (const [k, v] of Object.entries(obj)) { changes[k] = { oldValue: areas[name][k], newValue: v }; areas[name][k] = v }
+      listeners.storage.forEach((f) => f(changes, name))
+      window.log?.(`storage.${name}.set ${Object.keys(obj)}`)
+    },
+  })
+  window.chrome = {
+    storage: { sync: mkArea('sync'), local: mkArea('local'), onChanged: { addListener: (f) => listeners.storage.push(f), removeListener() {} } },
+    runtime: { sendMessage: async (m) => window.log?.('runtime.sendMessage ' + JSON.stringify(m)), onMessage: { addListener: (f) => listeners.message.push(f) } },
+  }
+  window.harness = {
+    set: (patch) => chrome.storage.sync.set({ clawdSettings: { ...(areas.sync.clawdSettings || {}), ...patch } }),
+    msg: (m) => listeners.message.forEach((f) => f(m)),
+    areas,
+  }
+</script>
+</head>
+<body>
+  <header>Some site header (z-index 99999)</header>
+  <main>
+    <h1>Hostile page</h1>
+    <p>This page forces Comic Sans, green text and extra letter-spacing on every element with <code>!important</code>. The widget lives in a shadow root and shouldn't change.</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
+    <div style="height: 1400px"></div>
+  </main>
+  <pre id="log"></pre>
+  <script>window.log = (m) => (document.getElementById('log').textContent += m + '\n')</script>
+  <script src="/dist-extension/content.js"></script>
+</body>
+</html>

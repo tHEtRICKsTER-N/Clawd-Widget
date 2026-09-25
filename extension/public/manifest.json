@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "Clawd Button Widget",
+  "short_name": "Clawd Widget",
+  "version": "1.0.2",
+  "description": "A pixel-art Clawd button that floats over any page. Click it to play guitar and other animations. Drag it anywhere, and change its text, font and colors.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Clawd Widget",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*",
+        "file:///*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "commands": {
+    "toggle-widget": {
+      "suggested_key": {
+        "default": "Alt+Shift+K"
+      },
+      "description": "Show / hide the widget on this page"
+    },
+    "play-random": {
+      "suggested_key": {
+        "default": "Alt+Shift+P"
+      },
+      "description": "Play a random animation"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Popup harness</title>
+<!-- Dev harness: renders the extension popup with a stubbed chrome.* API (no extension install needed). -->
+<script>
+  const areas = { sync: {}, local: {} }, ls = []
+  const area = (n) => ({ async get(k) { return { [k]: areas[n][k] } }, async set(o) { const c = {}; for (const [k, v] of Object.entries(o)) { c[k] = { newValue: v }; areas[n][k] = v } ls.forEach((f) => f(c, n)) } })
+  window.chrome = {
+    storage: { sync: area('sync'), local: area('local'), onChanged: { addListener: (f) => ls.push(f), removeListener() {} } },
+    tabs: { query: async () => [{ id: 1, url: 'https://github.com/anthropics' }] },
+    runtime: { openOptionsPage: () => console.log('openOptionsPage') },
+  }
+</script>
+<style>body { margin: 0 } #frame { width: 392px; border-right: 1px dashed #444; min-height: 100vh }</style>
+</head>
+<body data-page="popup">
+  <div id="frame"><div id="root"></div></div>
+  <script type="module" src="/extension/src/popup.tsx"></script>
+</body>
+</html>

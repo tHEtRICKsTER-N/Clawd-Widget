@@ -1,0 +1,10 @@
+:root { color-scheme: dark; }
+html, body { margin: 0; background: #121116; color: #ebe8f3; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.page-popup { width: 392px; padding: 12px; box-sizing: border-box; }
+.page-options { max-width: 600px; margin: 0 auto; padding: 24px 16px 48px; }
+.pg-head { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 12px; }
+.pg-head img { image-rendering: pixelated; border-radius: 5px; }
+.pg-link { margin-left: auto; background: none; border: 0; color: #a996ff; cursor: pointer; font: inherit; font-weight: 400; padding: 2px 0; }
+.pg-link:hover { text-decoration: underline; }
+.pg-note { margin: 4px 0 0; color: #938fa3; font-size: 12px; }
+kbd { background: #24222d; border: 1px solid #34313f; border-radius: 4px; padding: 0 4px; font: 11px ui-monospace, Consolas, monospace; }

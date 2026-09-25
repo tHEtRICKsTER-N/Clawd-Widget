@@ -1,0 +1,73 @@
+ULTRACODE BUTTON ANIMATION — REVERSE-ENGINEERING SPEC
+===========================================================
+
+SOURCE OF TRUTH
+- Match the attached cropped video clip first; this text explains what to reproduce.
+- Source recording is 720 × 1594 px portrait.
+- Original button is approximately x=22..699, y=774..879 => ~677 × 105 px.
+
+BUTTON
+- Large rounded rectangle; corner radius visually ~22–26 px.
+- Base is a deep saturated purple with subtle internal lighting/gradient.
+- White "Ultracode" label is left aligned with about 22 px padding.
+- Label is bold-ish sans-serif and visually ~20–22 px at the captured scale.
+- Do not make the button look like a generic neon CTA.
+
+CHARACTER / SPRITE
+- Tiny orange pixel-art quadruped/animal near the right end.
+- Dark gray/black electric guitar angled upward toward the upper-right.
+- Orange body has darker orange/brown pixel shading.
+- Guitar has black/dark gray body and lighter gray highlights.
+- Yellow pixel musical notes/particles appear intermittently above/around it.
+- Preserve hard pixel edges; no anti-aliasing and no smooth vector redraw.
+- Character should have several animation poses (idle / playing) rather than one static image.
+
+ENERGY / GRID
+- The right half of the button periodically fills with a square-cell pixel grid.
+- Grid cells are approximately 10–11 px in the original capture.
+- At peak, many cells turn pale lavender / near-white.
+- The bright zone has a chunky, stepped boundary and sweeps/expands LEFTWARD from the right edge.
+- Behind it is a darker purple grid/glow, so the effect reads as a pixelated energy wave.
+- The wave fades back into the purple base after passing through the button.
+- It is not a smooth radial gradient and not a progress bar.
+- Clip every particle/grid element to the button's rounded shape.
+
+MOTION / TIMING OBSERVATION
+- Recording length: ~13.3 s.
+- Around 1.2–1.8 s the orange character is visible in an idle/simple pose; the guitar/playing pose then becomes apparent.
+- Large pixel sweeps recur at roughly ~1.7–2.0 s intervals through most of the clip.
+- Typical pulse sequence:
+  1. quiet purple field + character;
+  2. bright pixel field appears at/near right edge;
+  3. stepped grid expands/sweeps leftward;
+  4. bright region surrounds/passes behind character;
+  5. field dims and recedes;
+  6. character keeps playing and notes flicker independently.
+- Avoid making the pulse perfectly mechanical; the reference has small differences in particle positions/timing.
+
+IMPLEMENTATION
+- React/HTML/CSS + Canvas is a good fit.
+- Layer order:
+  1) rounded purple button background,
+  2) pixel-grid/energy layer,
+  3) character sprite,
+  4) note particles.
+- Procedurally generate the grid as discrete square cells.
+- Animate a left-moving pulse mask and quantize its boundary to whole cells.
+- Use nearest-neighbor scaling for all pixel-art assets.
+- Use a small deterministic sprite-frame loop for the musician.
+- Spawn 1–3 yellow note particles with short lifetimes and pixel-snapped positions.
+- Keep the loop seamless and do not introduce blur into the pixel art.
+- Prefer transform/opacity changes on the grid layer and sprite-sheet frame changes over scaling the character smoothly.
+
+DELIVERABLE
+Build a reusable Ultracode button component that visually matches the reference.
+Include a small dev/test mode that lets us slow the animation to 25%, 50%, 100%, and 200% so the timing can be compared frame-by-frame against the reference clip.
+
+REFERENCE FILES
+- ultracode_button_clip.mp4
+- ultracode_button_timeline.png
+- ultracode_pixel_animation_zoom.png
+- ultracode_visual_reference.png
+
+When the text and video disagree, the video wins.

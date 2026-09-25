@@ -1,0 +1,5 @@
+:root { color-scheme: dark; }
+html, body { margin: 0; background: #121116; color: #ebe8f3; font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.dk-page { max-width: 580px; margin: 0 auto; padding: 20px 16px 40px; }
+.dk-page h1 { font-size: 18px; margin: 0 0 4px; }
+.dk-note { color: #938fa3; margin: 0 0 16px; }
