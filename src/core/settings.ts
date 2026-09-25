@@ -32,6 +32,8 @@ export interface Settings {
   /** start the button in the dark "pressed" state flash like the original */
   pressFlash: boolean
   idleBlink: boolean
+  /** while idle, Clawd's eyes follow the pointer (desktop: anywhere on screen) */
+  eyesFollow: boolean
   /** widget width in CSS px (height follows the 676×104 aspect) */
   size: number
   showToolbar: boolean
@@ -117,6 +119,7 @@ export const DEFAULT_SETTINGS: Settings = {
   playMode: 'once',
   pressFlash: true,
   idleBlink: true,
+  eyesFollow: true,
   size: 340,
   showToolbar: true,
   enabled: true,

@@ -9,9 +9,13 @@ import type { SpriteFrame } from './sprites'
 export type Eyes = 'open' | 'closed' | 'happy' | 'wide' | 'look' | 'lookL' | 'lookR'
 export type Arm = 'side' | 'up' | 'high' | 'down' | 'none'
 export type Legs = 'stand' | 'crouch' | 'air'
+/** a direction, one step each way: [-1 left … 1 right, -1 up … 1 down]; [0, 0] = straight at you */
+export type Gaze = [x: number, y: number]
 
 export interface FrontPose {
   eyes?: Eyes
+  /** open eyes looking this way (eyes: 'open' only) */
+  gaze?: Gaze
   left?: Arm
   right?: Arm
   legs?: Legs
@@ -31,6 +35,9 @@ export interface FrontPose {
 const TOP = -12
 const H = 44
 const W = 40
+
+/** body of the standing front pose, sprite px [x0, x1) × [y0, y1) */
+export const BODY = { x0: 8, y0: 9, x1: 25, y1: 21 }
 
 const cache = new Map<string, SpriteFrame>()
 
@@ -76,7 +83,7 @@ export function front(p: FrontPose = {}): SpriteFrame {
   const eye = (ex: number) => {
     switch (eyes) {
       case 'open':
-        rect(ex, b + 2, 2, 2, 'E')
+        rect(ex + (p.gaze?.[0] ?? 0), b + 2 + (p.gaze?.[1] ?? 0), 2, 2, 'E')
         break
       case 'wide':
         rect(ex, b + 2, 2, 2, 'E')

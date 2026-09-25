@@ -8,6 +8,7 @@
  */
 
 import { ANIMATIONS, idlePose, pickRandom } from '../engine/animations'
+import { BODY, type Gaze } from '../engine/clawd'
 import { lingerFrame, playFrame } from '../engine/frame'
 import { CELL, CELL_INNER, COLS, REF_H, REF_W, ROWS, computeField, createField } from '../engine/grid'
 import type { Particle } from '../engine/particle'
@@ -35,6 +36,8 @@ const PRESS_COLOR = '#1c1e1b'
 const LABEL_LEFT = 22
 const LABEL_RIGHT = 540
 const LABEL_SIZE = 30.5
+/** ms of pointer stillness before Clawd stops watching it and goes back to glancing around */
+const WATCH_FOR = 3000
 
 export interface RendererOptions {
   /** called when a single play finishes */
@@ -84,6 +87,8 @@ export class ClawdButton {
   private palette: Record<string, string> = { ...PALETTE }
   private fxColors: Record<string, string> = {}
   private stateCache: RendererState = { mode: 'idle', anim: null, t: 0, pose: '' }
+  /** where the pointer was last seen (client px) and when (performance.now() ms) */
+  private pointer: { x: number; y: number; at: number } | null = null
 
   constructor(parent: Element | ShadowRoot, settings: Settings, opts: RendererOptions = {}) {
     this.s = settings
@@ -118,6 +123,7 @@ export class ClawdButton {
     this.el = el
     parent.appendChild(el)
     this.applySettings()
+    window.addEventListener('pointermove', this.onPointerMove, { capture: true, passive: true })
     this.raf = requestAnimationFrame(this.tick)
   }
 
@@ -168,10 +174,22 @@ export class ClawdButton {
     return this.stateCache
   }
 
+  /**
+   * The pointer is at (x, y), in this page's client coordinates. The button already
+   * follows pointer moves on its own page; hosts that know more (the desktop app sees
+   * the mouse anywhere on screen) call this too.
+   */
+  lookAt(x: number, y: number) {
+    this.pointer = { x, y, at: performance.now() }
+  }
+
   destroy() {
     cancelAnimationFrame(this.raf)
+    window.removeEventListener('pointermove', this.onPointerMove, { capture: true })
     this.el.remove()
   }
+
+  private onPointerMove = (e: PointerEvent) => this.lookAt(e.clientX, e.clientY)
 
   // ───────────────────────── settings → DOM ─────────────────────────
 
@@ -298,7 +316,7 @@ export class ClawdButton {
       fieldT = f.fieldT
     } else {
       this.idleT += dt * this.speed
-      pose = idlePose(this.idleT, this.s.idleBlink)
+      pose = idlePose(this.idleT, this.s.idleBlink, this.gaze(now))
       if (this.linger) {
         this.linger.t += dt * this.speed
         const f = lingerFrame(this.linger.anim, this.linger.end, this.linger.t)
@@ -330,6 +348,22 @@ export class ClawdButton {
     this.drawGrid(pulses, fieldT)
     this.drawSprite(pose)
     this.drawFx(particles)
+  }
+
+  /** Which way Clawd should look to watch the pointer (null: not watching). */
+  private gaze(now: number): Gaze | null {
+    const p = this.pointer
+    if (!p || !this.s.eyesFollow || now - p.at > WATCH_FOR) return null
+    const r = this.el.getBoundingClientRect()
+    const kk = r.width / REF_W
+    const x = (col: number) => r.left + (SPRITE_ORIGIN.x + col * SPRITE_UNIT) * kk
+    const y = (row: number) => r.top + (SPRITE_ORIGIN.y + row * SPRITE_UNIT) * kk
+    // on its face (or body): look straight at you
+    if (p.x >= x(BODY.x0) && p.x < x(BODY.x1) && p.y >= y(BODY.y0) && p.y < y(BODY.y1)) return [0, 0]
+    const dx = p.x - x((BODY.x0 + BODY.x1) / 2)
+    const dy = p.y - y(BODY.y0 + 3) // eye level
+    const a = (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI) / 4
+    return [Math.round(Math.cos(a)), Math.round(Math.sin(a))]
   }
 
   // ───────────────────────── drawing ─────────────────────────

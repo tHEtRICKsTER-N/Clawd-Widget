@@ -185,11 +185,41 @@ function createWidget() {
   void widget.loadFile(path.join(DIST, 'widget.html'))
   widget.webContents.on('did-finish-load', () => widget?.webContents.send('layout', layout))
   widget.on('blur', endDrag)
+  widget.on('show', watchCursor)
+  widget.on('hide', watchCursor)
   widget.on('closed', () => {
     endDrag()
     widget = null
+    watchCursor()
   })
   state.btn = btn
+  watchCursor()
+}
+
+// ───────────────────────── cursor ─────────────────────────
+// The widget page only sees the mouse while it's over the window. While "Eyes follow
+// cursor" is on, send it the global position (in window coordinates) so Clawd can watch
+// the mouse anywhere on screen. Only changes are sent.
+let cursorTimer = null
+let lastCursor = null
+
+function watchCursor() {
+  const want = !!widget && widget.isVisible() && state.settings.eyesFollow !== false
+  if (want && !cursorTimer) cursorTimer = setInterval(sendCursor, 50)
+  if (!want && cursorTimer) {
+    clearInterval(cursorTimer)
+    cursorTimer = null
+    lastCursor = null
+  }
+}
+
+function sendCursor() {
+  if (!widget) return
+  const p = screen.getCursorScreenPoint()
+  if (lastCursor && p.x === lastCursor.x && p.y === lastCursor.y) return
+  lastCursor = p
+  const b = widget.getContentBounds()
+  widget.webContents.send('cursor', p.x - b.x, p.y - b.y)
 }
 
 function openSettings() {
@@ -241,6 +271,7 @@ function setSettings(next) {
   }
   broadcast()
   rebuildTray()
+  watchCursor()
 }
 
 const patchSettings = (patch) => setSettings({ ...state.settings, ...patch })

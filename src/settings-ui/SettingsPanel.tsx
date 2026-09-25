@@ -182,6 +182,10 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             <input type="checkbox" checked={s.idleBlink} onChange={(e) => update({ idleBlink: e.target.checked })} />
             Blink when idle
           </label>
+          <label className="sp-check" title={host === 'desktop' ? 'Clawd watches the mouse anywhere on screen while resting' : 'Clawd watches the pointer while resting'}>
+            <input type="checkbox" checked={s.eyesFollow} onChange={(e) => update({ eyesFollow: e.target.checked })} />
+            Eyes follow cursor
+          </label>
           <label className="sp-check" title="Guitar Jam starts with the dark 'pressed' flash from the original">
             <input type="checkbox" checked={s.pressFlash} onChange={(e) => update({ pressFlash: e.target.checked })} />
             Tap flash

@@ -81,6 +81,8 @@ export interface DesktopBridge {
   onSettings(cb: (s: unknown) => void): () => void
   getLayout(): Promise<DesktopLayout>
   onLayout(cb: (l: DesktopLayout) => void): () => void
+  /** mouse position anywhere on screen, in window coordinates (sent while eyes follow the cursor) */
+  onCursor(cb: (x: number, y: number) => void): () => void
   /** main process follows the cursor from dragStart until dragEnd */
   dragStart(): void
   dragEnd(): void

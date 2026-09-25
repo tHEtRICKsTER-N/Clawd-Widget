@@ -24,6 +24,7 @@ npm run dev          # web playground at http://localhost:5178
 ## Features
 
 - **Click to play once**, then it rests in an idle pose (blinks, glances around). Choose **Loop** to keep it going after a click.
+- **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
 - **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, or **Random**, which picks a different one on every click.
 - **Customizable:** label text, font (Inter, Space Grotesk, JetBrains Mono, two pixel fonts, System, Serif, or any installed font), bold, and colors for the background, background glow, text, bot, energy cells, energy glow and particles. Includes 7 presets and 4 sizes.
 - **Floating widget:** drag it anywhere. It docks to the nearest corner and snaps to edges. The hover toolbar has play, random, customize and hide.

@@ -1,4 +1,4 @@
-import { front } from '../clawd'
+import { front, type Gaze } from '../clawd'
 import { pose, type AnimationDef, type AnimId, type Pose } from '../types'
 import { code } from './code'
 import { dance } from './dance'
@@ -22,12 +22,19 @@ export function loopTime(a: AnimationDef, t: number): number {
   return a.loopFrom + ((t - a.loopFrom) % span)
 }
 
-/** Resting state between plays: standing Clawd who blinks and glances around. */
-export function idlePose(t: number, blink: boolean): Pose {
-  if (!blink) return pose(front(), { name: 'idle' })
+/**
+ * Resting state between plays: standing Clawd who blinks and glances around.
+ * With a gaze it watches that way instead (still blinking), e.g. towards the cursor.
+ */
+export function idlePose(t: number, blink: boolean, gaze?: Gaze | null): Pose {
   const cycle = 3.7
   const n = Math.floor(t / cycle)
   const u = t - n * cycle
+  if (gaze) {
+    if (blink && u > 3.56) return pose(front({ eyes: 'closed' }), { name: 'blink' })
+    return pose(front(gaze[0] || gaze[1] ? { gaze } : {}), { name: `watch ${gaze[0]},${gaze[1]}` })
+  }
+  if (!blink) return pose(front(), { name: 'idle' })
   if (u > 3.56) return pose(front({ eyes: 'closed' }), { name: 'blink' })
   if (n % 3 === 2 && u > 1.2 && u < 2.3) return pose(front({ eyes: u < 1.75 ? 'lookL' : 'lookR' }), { name: 'glance' })
   return pose(front(), { name: 'idle' })
