@@ -8,7 +8,7 @@
 // grid cell's energy and glow, and the pressed-flash overlays. The idle pose, the live
 // reactions (drag, drop, pokes, combo, celebration) and the idle antics (stretch, yawn,
 // scratch, wander, dozing, waking) are checked too, and so is every animation's grid
-// under reduced motion ("calm: …").
+// under reduced motion ("calm: …"). Secret animations (not in the picker) are included.
 // Samples are hashed in quarter-second chunks, so a change is reported with its time.
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -32,7 +32,7 @@ const vite = await createServer({
 let current
 try {
   const load = (p) => vite.ssrLoadModule(p)
-  const [{ ANIM_LIST, idlePose }, { playFrame, lingerFrame }, { computeField, createField, LEVELS }, { darkMix, introGlow }, R, Antics, { calmPulses }] = await Promise.all([
+  const [{ ANIMATIONS, idlePose }, { playFrame, lingerFrame }, { computeField, createField, LEVELS }, { darkMix, introGlow }, R, Antics, { calmPulses }] = await Promise.all([
     load('/src/engine/animations/index.ts'),
     load('/src/engine/frame.ts'),
     load('/src/engine/grid.ts'),
@@ -67,7 +67,7 @@ try {
   }
 
   current = {}
-  for (const a of ANIM_LIST) {
+  for (const a of Object.values(ANIMATIONS)) {
     const span = a.duration - a.loopFrom
     const samples = []
     // one play, then two more loops (loop mode) — covers the loop seam
@@ -87,7 +87,7 @@ try {
     current[a.id] = fingerprint(samples)
   }
   // reduced motion: the grid with pulses thinned and toned down (sprite and particles don't change)
-  for (const a of ANIM_LIST) {
+  for (const a of Object.values(ANIMATIONS)) {
     const span = a.duration - a.loopFrom
     const samples = []
     for (let i = 0; i < Math.ceil((a.duration + 2 * span) * FPS); i++) {

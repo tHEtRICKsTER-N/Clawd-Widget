@@ -63,7 +63,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 - [x] **4.2 Themes gamers and devs recognize** (S)
   Game Boy DMG, PICO-8, Virtual Boy, Synthwave, Dracula, Catppuccin, Tokyo Night, Nord. Optional CRT scanline overlay. Share codes: copy the theme as a short string and paste one in.
 
-- [ ] **4.3 Konami code and a secret animation** (S)
+- [x] **4.3 Konami code and a secret animation** (S)
   ↑↑↓↓←→←→BA while the widget has focus. Never listens to keys on the host page.
 
 - [ ] **4.4 Achievements and cosmetics** (M)

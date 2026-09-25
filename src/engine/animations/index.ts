@@ -4,11 +4,13 @@ import { code } from './code'
 import { dance } from './dance'
 import { guitar } from './guitar'
 import { hello } from './hello'
+import { konami } from './konami'
 import { jump } from './jump'
 import { sleep } from './sleep'
 import { think } from './think'
 
-export const ANIMATIONS: Record<AnimId, AnimationDef> = { guitar, hello, jump, code, dance, sleep, think }
+export const ANIMATIONS: Record<AnimId, AnimationDef> = { guitar, hello, jump, code, dance, sleep, think, konami }
+/** the ones people pick from (the picker, Random, the menus); the rest are secrets */
 export const ANIM_LIST: AnimationDef[] = [guitar, hello, jump, code, dance, sleep, think]
 
 export function pickRandom(exclude?: AnimId | null): AnimId {

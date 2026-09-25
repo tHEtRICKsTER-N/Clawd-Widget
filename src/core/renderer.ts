@@ -56,6 +56,9 @@ export interface RendererOptions {
  */
 export type Status = 'working' | 'waiting' | 'done' | 'idle'
 export const STATUSES: Status[] = ['working', 'waiting', 'done', 'idle']
+/** ↑↑↓↓←→←→BA, typed while the button has focus, plays the secret animation */
+const KONAMI = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a']
+
 /** loops while the status is 'working' */
 const WORKING_ANIM: AnimId = 'think'
 
@@ -116,6 +119,8 @@ export class ClawdButton {
   private soundClock = 0
   /** pulses that have sounded recently, so each sounds once */
   private heard: { kind: string; seed: number; at: number }[] = []
+  /** how much of the Konami code has been typed */
+  private konamiAt = 0
   /** the system asks for reduced motion: calmer pulses, no tap flash, calmer eyes */
   private motion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
   private calm = !!this.motion?.matches
@@ -155,6 +160,8 @@ export class ClawdButton {
     parent.appendChild(el)
     this.applySettings()
     window.addEventListener('pointermove', this.onPointerMove, { capture: true, passive: true })
+    // keys only while the button itself has focus: never the host page's
+    el.addEventListener('keydown', this.onKey)
     this.motion?.addEventListener('change', this.onMotion)
     this.life.calm = this.calm
     this.raf = requestAnimationFrame(this.tick)
@@ -277,6 +284,22 @@ export class ClawdButton {
   }
 
   private onPointerMove = (e: PointerEvent) => this.lookAt(e.clientX, e.clientY)
+
+  private onKey = (e: KeyboardEvent) => {
+    const k = e.key.toLowerCase()
+    // Shift (for capital B A) and friends don't count as keys of the code
+    if (k === 'shift' || k === 'control' || k === 'alt' || k === 'meta' || k === 'capslock') return
+    if (k === KONAMI[this.konamiAt]) this.konamiAt++
+    // a wrong key starts over, but a third ↑ still leaves "↑↑" typed
+    else this.konamiAt = k !== KONAMI[0] ? 0 : this.konamiAt === 2 ? 2 : 1
+    // keys that are part of the code don't also scroll the page
+    if (this.konamiAt > 0) e.preventDefault()
+    if (this.konamiAt === KONAMI.length) {
+      this.konamiAt = 0
+      this.unlockSound()
+      this.play('konami')
+    }
+  }
 
   private onMotion = () => {
     this.calm = !!this.motion?.matches

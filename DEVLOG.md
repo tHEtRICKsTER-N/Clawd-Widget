@@ -4,6 +4,28 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 4.3 Konami code and a secret animation
+
+↑↑↓↓←→←→BA typed while the button has focus plays a secret animation (`animations/konami.ts`):
+- Clawd looks wide-eyed, glances left and right, crouches and leaps 6 px.
+- It lands with a full-strength `first` shockwave and a rainbow burst of confetti.
+- Fourteen stars light up across the grid, and "+30♥" rises over its head (the 3×5 font gained `+` and `♥`).
+- Its arms pump in victory, and it ends cool with a blink.
+
+It's in `ANIMATIONS` (so `play('konami')` works) but not in `ANIM_LIST`, so it's not in the picker, Random or the menus, and the desktop CLI rejects it. The README only hints at it.
+
+**Keys.** The listener is on the button element itself, in all hosts (floating widget, settings preview, desktop), so it only hears keys while the widget has focus, never the host page's. Keys that continue the code call `preventDefault`, so the arrows don't scroll the page. A wrong key starts over, but a third ↑ leaves "↑↑" typed. Shift, Ctrl, Alt, Meta and Caps Lock don't count, so capital B A works.
+
+`check:anims` now covers every animation in `ANIMATIONS`, including secret ones: `konami` and `calm: konami` were added (the snapshot only gained lines). At most 2 pulses start in any second (twinkles aside), with no pop-ins.
+
+Verified:
+- Chromium: the code typed into a page input does nothing and doesn't scroll. Typed on the focused widget, it plays `konami`, all 10 keys are kept from scrolling, and the page stays put. ↑↑↑↓↓←→←→BA plays; a wrong key in the middle doesn't; capital B A plays. `konami` isn't in `ANIM_LIST`.
+- Desktop (Electron under Xvfb): after a click the button has focus, and the typed code plays `konami`.
+- Frames: the leap stays inside the button (lowered from 8 to 6 px after the first render put the raised arms past the top edge).
+- `tsc`, `check:anims` (30 × `same`), `build:ext`, `build:desktop` and the renderer pixel check pass.
+
+*Correction to 4.2:* its pixel-check run first reported every frame as different. The harness also fingerprinted the opacity of every `<span>` in the button, and 4.2 added one (the CRT layer). Comparing the canvases and the original overlay layers shows every frame identical, and the harness now does that.
+
 ## 2026-09-25 · 4.2 Themes gamers and devs recognize
 
 **Eight presets**, from each palette's published colours, in a *Games & editors* group under the seven classics:
