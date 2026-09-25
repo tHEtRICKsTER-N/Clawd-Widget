@@ -2,7 +2,7 @@ import type { Particle } from './particle'
 import type { Pulse } from './pulses'
 import type { SpriteFrame } from './sprites'
 
-export type AnimId = 'guitar' | 'hello' | 'jump' | 'code' | 'dance' | 'sleep'
+export type AnimId = 'guitar' | 'hello' | 'jump' | 'code' | 'dance' | 'sleep' | 'think'
 
 export interface Pose {
   frame: SpriteFrame | null

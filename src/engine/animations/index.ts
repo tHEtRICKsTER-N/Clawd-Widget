@@ -6,9 +6,10 @@ import { guitar } from './guitar'
 import { hello } from './hello'
 import { jump } from './jump'
 import { sleep } from './sleep'
+import { think } from './think'
 
-export const ANIMATIONS: Record<AnimId, AnimationDef> = { guitar, hello, jump, code, dance, sleep }
-export const ANIM_LIST: AnimationDef[] = [guitar, hello, jump, code, dance, sleep]
+export const ANIMATIONS: Record<AnimId, AnimationDef> = { guitar, hello, jump, code, dance, sleep, think }
+export const ANIM_LIST: AnimationDef[] = [guitar, hello, jump, code, dance, sleep, think]
 
 export function pickRandom(exclude?: AnimId | null): AnimId {
   const pool = ANIM_LIST.filter((a) => a.id !== exclude)

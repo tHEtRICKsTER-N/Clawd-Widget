@@ -28,6 +28,7 @@ const ANIMS = [
   ['code', 'Code Mode'],
   ['dance', 'Dance Party'],
   ['sleep', 'Sleepy'],
+  ['think', 'Thinking'],
   ['random', 'Random'],
 ]
 const SIZES = [

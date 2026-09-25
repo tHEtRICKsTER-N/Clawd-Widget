@@ -54,7 +54,7 @@ export interface RendererOptions {
 export type Status = 'working' | 'waiting' | 'done' | 'idle'
 export const STATUSES: Status[] = ['working', 'waiting', 'done', 'idle']
 /** loops while the status is 'working' */
-const WORKING_ANIM: AnimId = 'code'
+const WORKING_ANIM: AnimId = 'think'
 
 export interface RendererState {
   mode: 'idle' | 'play' | 'controlled'

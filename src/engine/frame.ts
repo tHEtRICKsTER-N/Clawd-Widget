@@ -24,11 +24,15 @@ export interface Frame {
 export function playFrame(anim: AnimationDef, t: number): Frame {
   const tt = loopTime(anim, t)
   let pulses = anim.pulses(tt)
-  // carry pulses that are still fading across a loop seam (shifted onto this iteration's clock)
   const span = anim.duration - anim.loopFrom
-  if (!anim.native && t >= anim.duration && tt - anim.loopFrom < LINGER) {
-    const late = anim.pulses(tt + span).filter((p) => p.t0 <= anim.duration && p.t0 >= anim.loopFrom)
-    pulses = pulses.concat(late.map((p) => ({ ...p, t0: p.t0 - span })))
+  if (!anim.native && t >= anim.duration) {
+    // pulses from before the loop section belong to the first play-through only
+    if (anim.loopFrom > 0) pulses = pulses.filter((p) => p.t0 >= anim.loopFrom)
+    // carry pulses that are still fading across a loop seam (shifted onto this iteration's clock)
+    if (tt - anim.loopFrom < LINGER) {
+      const late = anim.pulses(tt + span).filter((p) => p.t0 <= anim.duration && p.t0 >= anim.loopFrom)
+      pulses = pulses.concat(late.map((p) => ({ ...p, t0: p.t0 - span })))
+    }
   }
   return { pose: anim.pose(tt), pulses, particles: anim.particles(tt), fieldT: tt }
 }

@@ -4,6 +4,29 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 3.2 Thinking animation plus hooks recipe
+
+**Thinking 💭** (`animations/think.ts`): Clawd raises a hand, and its eyes turn up toward a thought bubble that grows from its head: a dot, a bigger dot, then the cloud. Inside the bubble the dots cycle (·, ··, ···, empty) every 0.4 s. It glances straight up and blinks once per loop, and the grid breathes with a soft glow every 1.6 s at strength 0.24, so it stays calm when it loops for minutes (1 pulse a second at most). A 1 s intro grows the bubble; after that it loops a 3.2 s section. It is a regular animation, so it's in the picker, the Random pool and the desktop menus. `--state working` now loops it instead of Code Mode.
+
+**Found and fixed: intro pulses replayed on every loop.** Thinking is the first non-native animation whose loop doesn't start at 0. When it wrapped from 4.2 s back to 1.0 s, `anim.pulses(1.0)` still listed the intro's glow from 0.2 s, which is within the 2.2 s look-back. So that glow popped back in, half-faded, on every loop. The pulse-identity test from 2.1 caught it. `playFrame` now drops pulses from before the loop section once a play is looping. All other animations loop from 0 or loop natively, so they can't change: all six are `same`, and only `think` and `calm: think` differ, from the 4.2 s seam. After the fix there are 0 pop-ins in any animation.
+
+**Hooks recipe** (README, *Recipe: Clawd follows Claude Code*). The format was checked against the current hooks docs:
+- `UserPromptSubmit` → `--state working`.
+- `Notification` with matcher `permission_prompt|idle_prompt`, so only when Claude really needs you, → `--state waiting`.
+- `Stop` → `--state done`.
+
+Each hook has `"async": true` so Claude never waits on the widget. The `curl` form works as an alternative when the endpoint is on.
+
+Verified:
+- Contact sheet and large frames: bubble, cycling dots, raised hand, glance and blink, and a gentle glow.
+- Desktop (Electron under Xvfb): `--state working` from a second instance is still looping `think` 9 s later. `--play think` works.
+- The picker shows Thinking; the grid is now 4 × 2 with Random.
+- `check:anims` has 28 entries (`think` and `calm: think` new); the six originals are unchanged. `tsc`, `build:ext` and `build:desktop` pass.
+
+Not verified: the recipe running under a real Claude Code session on Windows.
+
+**Phase 3 is done.**
+
 ## 2026-09-25 · 3.1 Control the running widget from the command line
 
 `Clawd Widget.exe --play <animation>` and `--state working|waiting|done|idle`, also written `--play=jump`. Values are checked; an unknown one prints the valid list and does nothing.

@@ -27,7 +27,7 @@ npm run dev          # web playground at http://localhost:5178
 - **Idle antics:** every few minutes Clawd stretches, yawns, scratches its head or wanders across the button and back. Left alone for five minutes, it nods off (Zzz) and wakes with a start when the pointer comes near. Turn it off with *Idle antics*.
 - **Poke Clawd:** a click on Clawd itself gets a squish and a heart instead of a play (the rest of the button still plays). Poke fast for a combo ("x5!") with bigger pulses on every hit, and a little celebration every 10. Turn it off with *Poke Clawd*.
 - **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
-- **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, or **Random**, which picks a different one on every click.
+- **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, Thinking, or **Random**, which picks a different one on every click.
 - **Customizable:** label text, font (Inter, Space Grotesk, JetBrains Mono, two pixel fonts, System, Serif, or any installed font), bold, and colors for the background, background glow, text, bot, energy cells, energy glow and particles. Includes 7 presets and 4 sizes.
 - **Reduced motion:** when your system asks for reduced motion, the grid flashes at most 3 times a second (a burst of rapid strums becomes one pulse) and less brightly, the tap flash is skipped, and Clawd's eyes change direction at most every 0.6 s. Nothing changes for everyone else.
 - **Light at rest:** while Clawd is resting, the widget only draws when something changes (a blink, the pointer moving, an antic), about once a second instead of 60 times. Dozing runs at a relaxed 12 fps.
@@ -75,7 +75,7 @@ If the widget is already running, the command goes to it and the new process exi
 
 | state | what Clawd does |
 |---|---|
-| `working` | loops Code Mode until the next state (or until you click) |
+| `working` | loops Thinking until the next state (or until you click) |
 | `waiting` | waves, then shows a "!" over its head until you click it |
 | `done` | Jump Party, then rests |
 | `idle` | goes back to resting |
@@ -90,6 +90,35 @@ curl -X POST -H "Authorization: Bearer $(cat "<token file>")" http://127.0.0.1:4
 ```
 
 The token is in the `control-token` file in the app's data folder (**Show token file** in the same menu), created when you first turn the endpoint on and readable only by you. The endpoint is off by default, listens on this machine only (127.0.0.1), and refuses requests without the token or addressed to another host name. `CLAWD_PORT=<port>` picks another port.
+
+### Recipe: Clawd follows Claude Code
+
+With [Claude Code hooks](https://code.claude.com/docs/en/hooks), Clawd thinks while Claude works, waves with a "!" when Claude needs you, and celebrates when it's done. Add this to `~/.claude/settings.json` (all projects) or a project's `.claude/settings.json`, with the path to your `Clawd Widget.exe` (portable, or installed: right-click its Start-menu shortcut → *Open file location*):
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "\"C:/path/to/Clawd Widget.exe\" --state working", "async": true }] }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|idle_prompt",
+        "hooks": [{ "type": "command", "command": "\"C:/path/to/Clawd Widget.exe\" --state waiting", "async": true }]
+      }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "\"C:/path/to/Clawd Widget.exe\" --state done", "async": true }] }
+    ]
+  }
+}
+```
+
+- `UserPromptSubmit` (you send a prompt) → `working`: Clawd loops Thinking.
+- `Notification`, only when Claude asks for permission or has been waiting for your input → `waiting`: Hello Wave, then a "!" until you click Clawd.
+- `Stop` (Claude has finished) → `done`: Jump Party.
+
+`"async": true` lets Claude carry on without waiting for the widget. With the local endpoint on, each `command` can be the `curl` line above instead, which is quicker than starting the app.
 
 ## Desktop widget notes
 
