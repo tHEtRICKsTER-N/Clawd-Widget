@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "build:ext": "node scripts/build-extension.mjs",
     "build:desktop": "vite build --config desktop/vite.config.ts",
+    "build:wc": "vite build --config packages/clawd-button/vite.config.ts",
     "desktop": "npm run build:desktop && electron .",
     "dist:desktop": "npm run build:desktop && electron-builder --win portable nsis",
     "icons": "python scripts/make-icons.py",

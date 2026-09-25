@@ -3,20 +3,23 @@
  * from the URL so it can be pasted into a Browser Source. This module turns a URL into
  * settings and triggers, and settings back into a URL (for the playground's builder).
  *
- *   theme=clawd:…  share code (colours + CRT)     text= font= bold=0|1 size=
+ *   theme=clawd:…  share code (colours + CRT), or a preset id (dmg, synthwave, …)
+ *   text= font= bold=0|1 size=   crt=1
  *   anim=guitar    what plays (or random)         loop=1  play on and on
  *   play=1|<id>    play when the page loads       every=30  play again every 30 s
  *   state=working  a status (as in Claude Code hooks: working, waiting, done, idle)
  *   sound=1 volume=0–100   wear=crown   idle=0 (no antics)   eyes=0 (no cursor)   pad=8
+ *   blink=0   pokes=0 (a click on Clawd plays too)   flash=0 (no tap flash)
  *
  * While it's open, changing the hash to #play=<id> or #state=<status> triggers those too.
+ * The <clawd-button> element (src/wc) reads the same names from its attributes.
  */
 
 import { ANIMATIONS } from '../engine/animations'
 import { COSMETICS } from '../engine/cosmetics'
 import type { AnimId } from '../engine/types'
 import { STATUSES, type Status } from './renderer'
-import { DEFAULT_SETTINGS, FONTS, normalize, parseThemeCode, themeCode, type Settings } from './settings'
+import { DEFAULT_SETTINGS, FONTS, PRESETS, normalize, parseThemeCode, themeCode, type Settings } from './settings'
 
 export interface Overlay {
   settings: Settings
@@ -30,31 +33,42 @@ export interface Overlay {
 }
 
 const isAnim = (v: string | null): v is AnimId => !!v && v in ANIMATIONS
-const flag = (v: string | null, fallback: boolean) => (v === null ? fallback : v === '1' || v === 'true' || v === 'yes')
+/** absent: the fallback; present with no value (`?loop`, `<clawd-button sound>`): on; 0/false/no/off: off */
+const flag = (v: string | null, fallback: boolean) => (v === null ? fallback : !['0', 'false', 'no', 'off'].includes(v.trim().toLowerCase()))
 
-export function parseOverlay(q: URLSearchParams): Overlay {
-  const d = DEFAULT_SETTINGS
-  const theme = parseThemeCode(q.get('theme') ?? '')
-  const anim = q.get('anim')
-  const font = q.get('font')
-  const wear = q.get('wear')
-  const settings = normalize({
-    ...d,
+/** Settings from named values (URL parameters, element attributes), on top of `base`. */
+export function settingsFrom(get: (name: string) => string | null, base: Settings = DEFAULT_SETTINGS): Settings {
+  const themeArg = get('theme') ?? ''
+  const preset = PRESETS.find((p) => p.id === themeArg.trim().toLowerCase())
+  const theme = preset ? { colors: preset.colors, crt: base.crt } : parseThemeCode(themeArg)
+  const anim = get('anim')
+  const font = get('font')
+  const wear = get('wear')
+  const volume = get('volume')
+  return normalize({
+    ...base,
     ...(theme ?? {}),
-    text: q.get('text') ?? d.text,
-    font: FONTS.some((f) => f.id === font) ? font : d.font,
-    bold: flag(q.get('bold'), d.bold),
-    size: Number(q.get('size')) || d.size,
-    animation: anim === 'random' || isAnim(anim) ? anim : d.animation,
-    playMode: flag(q.get('loop'), false) ? 'loop' : 'once',
-    sound: flag(q.get('sound'), false),
-    volume: q.get('volume') !== null ? Number(q.get('volume')) / 100 : d.volume,
-    cosmetic: COSMETICS.some((c) => c.id === wear) ? wear : 'none',
-    idleAntics: flag(q.get('idle'), d.idleAntics),
-    eyesFollow: flag(q.get('eyes'), d.eyesFollow),
-    idleBlink: flag(q.get('blink'), d.idleBlink),
+    text: get('text') ?? base.text,
+    font: FONTS.some((f) => f.id === font) ? font : base.font,
+    bold: flag(get('bold'), base.bold),
+    size: Number(get('size')) || base.size,
+    animation: anim === 'random' || isAnim(anim) ? anim : base.animation,
+    playMode: flag(get('loop'), base.playMode === 'loop') ? 'loop' : 'once',
+    sound: flag(get('sound'), base.sound),
+    volume: volume !== null && volume.trim() !== '' && Number.isFinite(Number(volume)) ? Number(volume) / 100 : base.volume,
+    crt: flag(get('crt'), theme?.crt ?? base.crt),
+    cosmetic: COSMETICS.some((c) => c.id === wear) ? wear : base.cosmetic,
+    idleAntics: flag(get('idle'), base.idleAntics),
+    eyesFollow: flag(get('eyes'), base.eyesFollow),
+    idleBlink: flag(get('blink'), base.idleBlink),
+    pokes: flag(get('pokes'), base.pokes),
+    pressFlash: flag(get('flash'), base.pressFlash),
     showToolbar: false,
   })
+}
+
+export function parseOverlay(q: URLSearchParams): Overlay {
+  const settings = settingsFrom((k) => q.get(k), { ...DEFAULT_SETTINGS, sound: false, cosmetic: 'none' })
   const p = q.get('play')
   const st = q.get('state')
   return {

@@ -7,6 +7,7 @@ A pixel-art Clawd button with a square-cell energy grid. It started as a recreat
 | **Web playground** | `src/` | `npm run dev` → http://localhost:5178 |
 | **Browser extension** (Chrome, Edge, Brave, Arc) | `extension/` → `dist-extension/` | `npm run build:ext`, then `chrome://extensions` → Developer mode → **Load unpacked** → pick `dist-extension/` |
 | **Desktop widget** (Windows; also builds for macOS/Linux) | `desktop/` → `release/` | `npm run desktop` to run, `npm run dist:desktop` to build `release/Clawd Widget Setup 1.0.2.exe` (installer) and `release/Clawd Widget 1.0.2.exe` (portable) |
+| **`<clawd-button>` web component** (any web page, e.g. a game's Play button) | `src/wc/` → `packages/clawd-button/` | `npm run build:wc`, then open `packages/clawd-button/demo.html` from a local web server. See [its README](packages/clawd-button/README.md) |
 
 ## Getting started
 
@@ -61,13 +62,15 @@ src/core/
   achievements.ts      stats, achievements and the tracker that saves them (debounced, merge-safe across tabs)
   game.ts              Bug Jump: the mini-game played on the button
   export.ts            GIF (gifenc) / WebM (WebCodecs VP9 + a small WebM writer) / PNG sprite-sheet export
-  overlay.ts           the OBS overlay's URL ⇄ settings (overlay.html runs src/overlay.ts)
+  overlay.ts           named values ⇄ settings: the OBS overlay's URL (overlay.html runs src/overlay.ts) and <clawd-button>'s attributes
   life.ts              ClawdLife: what Clawd does between plays (watching, drag and drop, pokes, antics, dozing)
   widget.ts            FloatingWidget: draggable/dockable wrapper (page or desktop-window mode)
   settings.ts          Settings model, presets, fonts, colour utils
   store.ts             storage adapters for settings and stats: chrome.storage / Electron IPC / localStorage
   fonts.ts             bundled fonts registered from embedded data (CSP-proof)
 src/settings-ui/       SettingsPanel: shared by the popup, options page, desktop settings and playground
+src/wc/                <clawd-button>: the custom element, its package entry and a lazy font loader
+packages/clawd-button/ the npm package: build config, types, README, demo page (dist/ is built)
 extension/             MV3 manifest, content script, service worker, popup/options
 desktop/               Electron main + preload, widget and settings pages
 dev/                   harness pages to test the built content script and the popup without installing
@@ -143,7 +146,7 @@ overlay.html?theme=clawd:OiZfWDee____2HZP7-j_oHb48MNaAA&text=Live!&play=1&every=
 
 | parameter | |
 |---|---|
-| `theme` | a share code (colours and CRT) |
+| `theme` | a share code (colours and CRT), or a preset id such as `dmg`, `synthwave` or `nord` |
 | `text`, `font`, `bold=0/1`, `size` | the label and the width in px |
 | `anim` | `guitar`, `hello`, `jump`, `code`, `dance`, `sleep`, `think`, `ship`, `squash`, `levelup`, `spooky`, `snow` or `random` |
 | `play=1` or `play=<anim>` | play when the page loads |
@@ -152,7 +155,9 @@ overlay.html?theme=clawd:OiZfWDee____2HZP7-j_oHb48MNaAA&text=Live!&play=1&every=
 | `state` | `working`, `waiting`, `done` or `idle`, as in the Claude Code recipe |
 | `sound=1`, `volume=0–100` | chiptune sounds |
 | `wear=<cosmetic>` | `partyhat`, `propeller`, `crown`, `shades`, `nightcap`, `headphones` |
+| `crt=1` | scanlines and a vignette |
 | `idle=0`, `eyes=0`, `blink=0` | no antics, eyes that don't follow the cursor, no blinking |
+| `pokes=0`, `flash=0` | a click on Clawd plays too; no dark flash when a play starts |
 | `pad=<px>` | margin around the button (default 8) |
 
 While it's open, changing the hash to `#play=<anim>` or `#state=<state>` triggers that right away.
@@ -167,6 +172,7 @@ While it's open, changing the hash to `#play=<anim>` or `#state=<state>` trigger
 
 ## Dev tools
 
+- `npm run build:wc`: builds the `<clawd-button>` package into `packages/clawd-button/dist/` (one ES module, plus one chunk per font face that loads on first use, and the fonts' licenses).
 - `npm run check:anims`: checks that every animation (normal and under reduced motion), the idle pose, the live reactions and the idle antics still produce exactly the same frames (sprite, particles, every grid cell, flash overlays; sampled at 60 fps through a play, two loops and the fade-out). It reports the first time that differs. Only run it with `--update` when you add an animation or mean to change one. The snapshot is `scripts/anims.snapshot.json`.
 - **Reference compare** tab: speed 25 / 50 / 100 / 200 % (keys 1–4), play/pause (space), frame step (←/→), scrubber, and the reference clip stacked, overlaid or difference-blended. `?t=7.3` opens paused at that time.
 - `?sheet=<animation>&step=0.15`: contact sheet of one animation.

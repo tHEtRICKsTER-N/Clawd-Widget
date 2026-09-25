@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>clawd-button demo</title>
+    <style>
+      body { margin: 0; padding: 32px 16px; background: #141414; color: #ddd; font: 15px/1.5 system-ui, sans-serif; }
+      main { max-width: 720px; margin: 0 auto; display: grid; gap: 28px; }
+      h1 { font-size: 20px; margin: 0; }
+      code { background: #222; padding: 1px 5px; border-radius: 4px; }
+      .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+      #log { font: 12px ui-monospace, monospace; color: #9a9; min-height: 1.5em; }
+    </style>
+    <!-- after `npm run build:wc`; once published: https://cdn.jsdelivr.net/npm/clawd-button@0.1/dist/clawd-button.js -->
+    <script type="module" src="./dist/clawd-button.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>&lt;clawd-button&gt;</h1>
+
+      <section>
+        <p>Default: a <code>Play</code> button that plays Guitar Jam when clicked (or focused and Enter / Space).</p>
+        <clawd-button id="plain"></clawd-button>
+      </section>
+
+      <section>
+        <p>A game's Play button: Level Up in Synthwave, then off to the game (<code>href</code>, here just <code>#playing</code>).</p>
+        <clawd-button id="game" text="Play now" theme="synthwave" anim="levelup" href="#playing" size="466"></clawd-button>
+      </section>
+
+      <section class="row">
+        <clawd-button text="Ship it" anim="ship" theme="dracula" size="300"></clawd-button>
+        <clawd-button text="Bug Squash" anim="squash" theme="dmg" font="press" crt size="300"></clawd-button>
+        <clawd-button text="Thinking" state="working" theme="nord" size="300"></clawd-button>
+        <clawd-button text="Random" anim="random" wear="crown" sound size="300"></clawd-button>
+      </section>
+
+      <div id="log"></div>
+    </main>
+    <script>
+      const log = document.getElementById('log')
+      for (const type of ['clawd-play', 'clawd-end'])
+        document.addEventListener(type, (e) => (log.textContent = `${type} ${e.detail.anim} (${e.target.getAttribute('text') ?? 'Play'})`))
+    </script>
+  </body>
+</html>

@@ -4,6 +4,42 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 5.2 `<clawd-button>` web component (built, not yet published)
+
+`src/wc/clawd-button.ts` is a custom element that wraps `ClawdButton` in an open shadow root. It's set up from attributes: `text`, `theme` (a preset id or a share code), `anim`, `size`, `font`, `bold`, `loop`, `href`/`target`, `state`, `sound`, `volume`, `crt`, `wear`, `idle`, `eyes`, `blink`, `pokes` and `flash`. Attributes can change at any time.
+- **Behaviour:** click, Enter or Space plays. With `href`, the page goes there when that play ends, and a second click during the play goes straight away. Events `clawd-play` and `clawd-end` carry `detail.anim`, bubble and are `composed`. Methods: `play(anim?)`, `stop()`, `setStatus()`.
+- **Defaults for a Play button:** the label is "Play", and pokes are off, so a click on Clawd plays instead of poking.
+- **Lifecycle:** moving the element in the DOM rebuilds it, and removing it destroys the renderer. Importing it without a DOM (server-side rendering) defines a harmless stand-in class instead of throwing.
+
+**Shared parsing.** The overlay's URL parsing became `settingsFrom(get, base)` in `core/overlay.ts`, which both the overlay and the element use, so the names mean the same in both. It also gained:
+- `theme` accepts preset ids;
+- new `crt`, `pokes` and `flash` inputs;
+- a bare flag (`?loop`, `<clawd-button sound>`) means on, and `off`, `false`, `no` or `0` mean off;
+- bad volumes are ignored.
+
+Existing overlay URLs parse as before.
+
+**Package** (`packages/clawd-button/`, `npm run build:wc`). A Vite library build: one ES module (118 kB, 36 kB gzipped, no dependencies) plus one chunk per font face. A small resolve hook swaps the renderer's `./fonts` for `src/wc/fonts-lazy.ts`, so a font is fetched only when it's first shown, and only in this build; the extension and desktop keep the embedded fonts. The build also writes `dist/FONTS-LICENSE.txt` with the five fonts' OFL notices. The package also has:
+- hand-written `clawd-button.d.ts`, with the tag and event maps;
+- a README, with an itch.io recipe (on the game's start screen: itch runs the game's `index.html` in a frame, and project pages don't allow scripts);
+- `demo.html`.
+
+The name `clawd-button` is free on npm today. It isn't published: that needs a license for the repo and the owner's npm account.
+
+Verified (Chromium, the built package served statically, no Vite, no React):
+- **Rendering:** six elements render at their sizes (340×52 by default, 466×72 at `size=466`) with the label as the accessible name. Only the fonts in use were fetched: Inter's two faces, and Press Start for the `font="press"` one.
+- **State and clicks:** `state=working` loops Thinking. A click plays and fires `clawd-play`. Level Up with `href="#playing"` doesn't navigate mid-play, fires `clawd-end` with its id and then navigates. A second click mid-play navigates at once.
+- **Keyboard:** Enter plays, and Space plays without scrolling the page.
+- **Live changes:** changing `text`, `theme` and `anim` updates at once, and `state=done` plays Jump Party. `play('ship')` and `stop()` work.
+- **Lifecycle:** an element made from JS, moved and removed leaves one button while connected and an empty shadow root after. No page errors.
+- **Node:** importing the package in Node works and exports `ClawdButtonElement` and `defineClawdButton`.
+- **Types:** the declared animation and status unions match the source types both ways, checked with `tsc`.
+- **Parsing:** 14 unit checks of `settingsFrom` and `parseOverlay` (presets, CRT from codes and attributes, flags, volume, size clamping, bad values, seasonal ids, text with markup), and the overlay's round trip, page and builder tests still pass.
+- **Package contents:** `npm pack --dry-run` lists 13 files (187 kB packed): README, types, the module, 9 font chunks and package.json. `FONTS-LICENSE.txt` was added after that run.
+- `tsc`, `check:anims` (all 40 `same`), `build`, `build:ext` and `build:desktop` pass.
+
+Not verified: Firefox and Safari (only Chromium is installed here; the element uses custom elements, shadow DOM, canvas and `FontFace`, all standard in both), a real itch.io upload, and the CDN URL, which only works once the package is published.
+
 ## 2026-09-25 · 5.4 New animations
 
 Five new `AnimationDef`s, all pure functions of time like the rest, built from `front()`, scheduled pulses and particles:
