@@ -58,7 +58,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'collector',
     name: 'Collector',
-    hint: 'Play every animation',
+    hint: 'Play every year-round animation',
     reward: 'shades',
     done: (s) => ANIM_LIST.every((a) => (s.plays[a.id] ?? 0) > 0),
   },

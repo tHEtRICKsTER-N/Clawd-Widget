@@ -25,12 +25,13 @@ npm run dev          # web playground at http://localhost:5178
 
 - **Click to play once**, then it rests in an idle pose (blinks, glances around). Choose **Loop** to keep it going after a click.
 - **Idle antics:** every few minutes Clawd stretches, yawns, scratches its head or wanders across the button and back. Left alone for five minutes, it nods off (Zzz) and wakes with a start when the pointer comes near. Turn it off with *Idle antics*.
-- **Achievements and a wardrobe:** nine goals pop a pixel toast when you reach them: first jam, a 10-poke combo, 100 clicks, every animation, playing at 3 AM, a certain cheat code, frequent flying, waking Clawd up, and scoring 20 in Bug Jump. Six of them unlock something for Clawd to wear: a party hat, a propeller cap, a crown, deal-with-it shades, a nightcap or headphones. The item sits on its head in every pose, guitar solos included. Pick one under *Achievements → Wear*.
+- **Achievements and a wardrobe:** nine goals pop a pixel toast when you reach them: first jam, a 10-poke combo, 100 clicks, every year-round animation, playing at 3 AM, a certain cheat code, frequent flying, waking Clawd up, and scoring 20 in Bug Jump. Six of them unlock something for Clawd to wear: a party hat, a propeller cap, a crown, deal-with-it shades, a nightcap or headphones. The item sits on its head in every pose, guitar solos included. Pick one under *Achievements → Wear*.
 - **Bug Jump 🎮:** a tiny runner played right on the button. Bugs crawl in along the grid, leaving glowing cells behind them, and Clawd jumps over them. Catch the ✓s mid-jump for extra points. Click, <kbd>Space</kbd> or <kbd>↑</kbd> jumps, and <kbd>Esc</kbd> quits. The score takes the label's place and your high score is saved. It opens from 🎮 in the hover toolbar.
 - **A secret:** click the widget, then type a certain famous cheat code. Gamers will know it. It only listens while the widget has focus, never to the page you're on.
 - **Poke Clawd:** a click on Clawd itself gets a squish and a heart instead of a play (the rest of the button still plays). Poke fast for a combo ("x5!") with bigger pulses on every hit, and a little celebration every 10. Turn it off with *Poke Clawd*.
 - **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
-- **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, Thinking, or **Random**, which picks a different one on every click.
+- **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, Thinking, Ship It (a countdown and a rocket that streaks across the button), Bug Squash (Clawd pounces on a bug), Level Up (a mushroom-style grow flicker and a fanfare of arrows), or **Random**, which picks a different one on every click.
+- **Seasonal animations:** Spooky 🎃 (lightning, a jack-o'-lantern, bats and a ghost, all October) and Snow Day ❄️ (1 December to 7 January) join the picker, the menus and Random in their season. Out of season they're still there by id for the command line, the overlay and Export.
 - **Customizable:** label text, font (Inter, Space Grotesk, JetBrains Mono, two pixel fonts, System, Serif, or any installed font), bold, and colors for the background, background glow, text, bot, energy cells, energy glow and particles. Includes 15 presets (7 classics plus Game Boy DMG, PICO-8, Virtual Boy, Synthwave, Dracula, Catppuccin, Tokyo Night and Nord), an optional CRT scanline overlay, and 4 sizes.
 - **Export GIF, WebM or a sprite sheet:** any animation in your current look (colours, font, label, CRT, even what Clawd is wearing), at S/M/L/XL and 12–50 fps. *Seamless loop* exports just the looping part so it repeats without a jump. Frames are exact, since the engine is a function of time, and the export matches what you see on screen. It's in the *Export* card in the playground, the extension's options page and the desktop settings. WebM needs a Chromium browser.
 - **Share codes:** your theme (colours and CRT) as one short string like `clawd:OiZfWDee____2HZP7-j_oHb48MNaAA`. Copy it from the Colors card, and paste someone else's there to use it.
@@ -49,7 +50,7 @@ src/engine/            pure, time-driven animation engine (no DOM)
   pulses.ts            pulse types: rings, discs, horizontal scans, twinkles
   clawd.ts             front-facing pose builder (eyes/arms/legs/laptop)
   sprites.ts           traced guitar-playing frames
-  animations/*.ts      one file per animation + registry, idle pose, random pick
+  animations/*.ts      one file per animation + registry, seasons, idle pose, random pick
   frame.ts             what a play shows at time t (loop seams, fade-out after a play)
   reactions.ts         live reactions (drag, drop, pokes, combo, celebration) as pure functions of time
   antics.ts            idle antics (stretch, yawn, scratch, wander), dozing off and waking up
@@ -74,7 +75,7 @@ dev/                   harness pages to test the built content script and the po
 
 ### Adding an animation
 
-Create `src/engine/animations/<name>.ts` exporting an `AnimationDef` (`duration`, and `pose(t)`, `pulses(t)` and `particles(t)` as pure functions of time). Build poses with `front({...})` and pulses with `scheduled(t, [[time, 'land'], ...])`. Then register it in `animations/index.ts` and add its id to `AnimId`. Every host picks it up automatically. Preview it with `http://localhost:5178/?sheet=<name>`. Once it looks right, run `npm run check:anims -- --update` to add it to the animation snapshot.
+Create `src/engine/animations/<name>.ts` exporting an `AnimationDef` (`duration`, and `pose(t)`, `pulses(t)` and `particles(t)` as pure functions of time). Build poses with `front({...})` and pulses with `scheduled(t, [[time, 'land'], ...])`; `cellAt(x, y)` puts a pulse under a sprite point. Then register it in `animations/index.ts` (in `ANIM_LIST`, or in `SEASONAL` with a `season: [fromMonth, fromDay, toMonth, toDay]`) and add its id to `AnimId`. Every host picks it up automatically, except the desktop menu, which lists animations in `desktop/main.cjs`. Preview it with `http://localhost:5178/?sheet=<name>`. Once it looks right, run `npm run check:anims -- --update` to add it to the animation snapshot.
 
 ## Control it from scripts (desktop)
 
@@ -144,7 +145,7 @@ overlay.html?theme=clawd:OiZfWDee____2HZP7-j_oHb48MNaAA&text=Live!&play=1&every=
 |---|---|
 | `theme` | a share code (colours and CRT) |
 | `text`, `font`, `bold=0/1`, `size` | the label and the width in px |
-| `anim` | `guitar`, `hello`, `jump`, `code`, `dance`, `sleep`, `think` or `random` |
+| `anim` | `guitar`, `hello`, `jump`, `code`, `dance`, `sleep`, `think`, `ship`, `squash`, `levelup`, `spooky`, `snow` or `random` |
 | `play=1` or `play=<anim>` | play when the page loads |
 | `every=<s>` | play again every so many seconds |
 | `loop=1` | keep playing |

@@ -6,15 +6,37 @@ import { guitar } from './guitar'
 import { hello } from './hello'
 import { konami } from './konami'
 import { jump } from './jump'
+import { levelup } from './levelup'
+import { ship } from './ship'
 import { sleep } from './sleep'
+import { snow } from './snow'
+import { spooky } from './spooky'
+import { squash } from './squash'
 import { think } from './think'
 
-export const ANIMATIONS: Record<AnimId, AnimationDef> = { guitar, hello, jump, code, dance, sleep, think, konami }
-/** the ones people pick from (the picker, Random, the menus); the rest are secrets */
-export const ANIM_LIST: AnimationDef[] = [guitar, hello, jump, code, dance, sleep, think]
+export const ANIMATIONS: Record<AnimId, AnimationDef> = { guitar, hello, jump, code, dance, sleep, think, ship, squash, levelup, spooky, snow, konami }
+/** always offered (the picker, Random, the menus); the rest are seasonal or secret */
+export const ANIM_LIST: AnimationDef[] = [guitar, hello, jump, code, dance, sleep, think, ship, squash, levelup]
+/** offered only in their season; playable by id (command line, overlay, export) any time */
+export const SEASONAL: AnimationDef[] = [spooky, snow]
 
-export function pickRandom(exclude?: AnimId | null): AnimId {
-  const pool = ANIM_LIST.filter((a) => a.id !== exclude)
+/** Is it this animation's season on this date? (always, for the non-seasonal ones) */
+export function inSeason(a: AnimationDef, d: Date = new Date()): boolean {
+  if (!a.season) return true
+  const [m1, d1, m2, d2] = a.season
+  const day = (d.getMonth() + 1) * 100 + d.getDate()
+  const from = m1 * 100 + d1
+  const to = m2 * 100 + d2
+  return from <= to ? day >= from && day <= to : day >= from || day <= to
+}
+
+/** What the picker, Random and the menus offer on this date: the regulars plus whatever is in season. */
+export function offered(d: Date = new Date()): AnimationDef[] {
+  return [...ANIM_LIST, ...SEASONAL.filter((a) => inSeason(a, d))]
+}
+
+export function pickRandom(exclude?: AnimId | null, d: Date = new Date()): AnimId {
+  const pool = offered(d).filter((a) => a.id !== exclude)
   return pool[Math.floor(Math.random() * pool.length)].id
 }
 

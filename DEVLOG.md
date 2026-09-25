@@ -4,6 +4,36 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 5.4 New animations
+
+Five new `AnimationDef`s, all pure functions of time like the rest, built from `front()`, scheduled pulses and particles:
+- **Ship It 🚀** (`ship.ts`, 4.2 s). A rocket drops in beside Clawd with a thud, and "3", "2", "1" tick over Clawd's head (a beep each, with Clawd nodding along). At liftoff there's a blast and smoke rolls out both ways. The rocket climbs, turns and streaks left across the whole button, and its exhaust lights every grid cell it passes, one `trail` pulse per cell, timed by inverting the flight curve so the line has no gaps. A boom and stars at the far edge, then Clawd cheers and a ✓ rises.
+- **Bug Squash 🐛** (`squash.ts`, 3.6 s). A bug (the same glyph and colour as Bug Jump, now shared from `particle.ts`) crawls in along the grid, lighting its track. Clawd spots it ("!"), leaps 15 px left (moved with the pose's `ox`, since `front()` clips anything left of its grid) and belly-flops onto it with a `land` thud. Bits fly out, a splat stays behind, a ✓ rises, and Clawd strolls back.
+- **Level Up ⬆️** (`levelup.ts`, 3.4 s). Clawd charges up with sparkles rising, then flickers between sizes, Super Mushroom style, using the pose `scale` (pivoted at the feet). It stands big and proud while ↑s rise, stars pop across the grid and "LV UP!" floats beside it, then settles back in two steps.
+- **Spooky 🎃** (seasonal, 1 Oct to 1 Nov, 4.0 s). Lightning flashes the whole grid (a `first` pulse with a 40-cell radius and no growth), and a jack-o'-lantern appears with a candle flickering through its face. Bats flap past, and a ghost drifts in from the left: BOO! Clawd jumps and shivers, then laughs as the ghost floats away.
+- **Snow Day ❄️** (seasonal, 1 Dec to 7 Jan, 4.4 s). Snow drifts down and glints in the grid. Clawd shuffles about with its mouth open catching flakes and gets one (♥). Snow piles up on its head as a cap that follows the head down when it braces, then Clawd shakes it all off.
+
+**Seasons.** `AnimationDef` has an optional `season: [fromMonth, fromDay, toMonth, toDay]` (it may wrap past New Year). `ANIM_LIST` holds the year-round animations, and `SEASONAL` the rest. `offered(date)` is the year-round ones plus whatever is in season: that's what the picker shows (plus the current pick if it's out of season, so a saved Spooky doesn't vanish from view in November) and what Random draws from. By id they play any time: from the command line, the overlay's `anim=`, the endpoint, and Export, which lists all of them so you can make a Halloween GIF in September. The desktop menu mirrors the season table in `main.cjs`, which can't import the TypeScript.
+
+**Small shared pieces.**
+- `cellAt(x, y, snap?)` moved from `game.ts` into `grid.ts` (sprite px → grid cell).
+- `BUG` and `BUG_COLOR` moved into `particle.ts`, plus `ARROW_UP`.
+- The tiny font gained B, L, O, P, U and V. V is 5 px wide, because a 3-px V read as U ("LU UP!").
+
+**Collector** ("play every animation") now counts the three new year-round ones and not the seasonal ones, and its hint says "year-round". Anyone who already unlocked it keeps it, since unlocks are stored and never re-checked.
+
+Verified:
+- `check:anims`: all 30 existing entries still `same` before and after. `--update` only added the 10 new entries (5 animations, normal and calm): 578 lines added, none changed.
+- Flash rate: at most 2 onsets in any second for each new animation, normal and calm, and no pulse pops in mid-life, looping or fading out. Single-cell `twinkle` and `trail` pulses are exempt here as in `calmPulses`.
+- Seasons: boundary dates (30 Sep, 1 Oct, 1 Nov, 2 Nov, 30 Nov, 1 Dec, 31 Dec, 1 Jan, 7 Jan, 8 Jan) all give the right set, and 3000 Random picks in September never include a seasonal or secret animation (October's do include Spooky).
+- Playground with a faked clock: today the picker has the 10 year-round ones plus Random, and on 20 Oct and 3 Jan it adds Spooky and Snow Day respectively. Export always lists all 12. Picking Ship It plays it in the preview.
+- Desktop (Electron under Xvfb): `--play` with each of the five new ids plays it, including the out-of-season ones, and `--play nope` lists every id. The menu's season filter checked on dates from September to January, including a saved Spooky in November.
+- Bug Jump unit tests all pass after the glyph and helper moved.
+- Frame sheets of each animation looked over at key times; fixes from that pass: ✓s and "LV UP!" moved clear of the head, a solid ↑ (the thin one read as a cross), the BOO flash is now a ring so the ghost stays readable, and the snow cap was made to follow the head.
+- `tsc`, `build:ext` and `build:desktop` pass.
+
+Not verified: how the sounds of the new ones feel (the beeps, booms and chimes come from the existing pulse sounds and weren't listened to), and the tray menu only picks up a new season when it is next rebuilt (any setting change or restart). The right-click menu is built fresh each time.
+
 ## 2026-09-25 · 5.3 OBS overlay URL
 
 `overlay.html` (a second entry in the web build) is the button alone on a transparent page, for an OBS Browser Source. It's set up entirely from the URL (`src/core/overlay.ts`: `parseOverlay` and `overlayUrl`):

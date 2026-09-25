@@ -29,8 +29,28 @@ const ANIMS = [
   ['dance', 'Dance Party'],
   ['sleep', 'Sleepy'],
   ['think', 'Thinking'],
+  ['ship', 'Ship It'],
+  ['squash', 'Bug Squash'],
+  ['levelup', 'Level Up'],
   ['random', 'Random'],
 ]
+// Seasonal ones join the Animation menu in season ([from month, day, to month, day], as
+// `season` in src/engine/animations/*.ts); --play takes them any time.
+const SEASONAL = [
+  ['spooky', 'Spooky', [10, 1, 11, 1]],
+  ['snow', 'Snow Day', [12, 1, 1, 7]],
+]
+function inSeason([m1, d1, m2, d2], d = new Date()) {
+  const day = (d.getMonth() + 1) * 100 + d.getDate()
+  const from = m1 * 100 + d1
+  const to = m2 * 100 + d2
+  return from <= to ? day >= from && day <= to : day >= from || day <= to
+}
+/** the Animation menu: the regulars, whatever is in season (or already picked), then Random */
+function menuAnims(current) {
+  const extra = SEASONAL.filter(([id, , season]) => id === current || inSeason(season)).map(([id, name]) => [id, name])
+  return [...ANIMS.slice(0, -1), ...extra, ANIMS[ANIMS.length - 1]]
+}
 const SIZES = [
   ['S', 240],
   ['M', 340],
@@ -54,8 +74,9 @@ function parseCli(argv) {
   }
   const play = value('play')
   if (play !== undefined) {
-    if (ANIMS.some(([id]) => id === play)) out.play = play
-    else console.error(`unknown animation "${play}"; use one of: ${ANIMS.map(([id]) => id).join(', ')}`)
+    const known = [...ANIMS, ...SEASONAL].map(([id]) => id)
+    if (known.includes(play)) out.play = play
+    else console.error(`unknown animation "${play}"; use one of: ${known.join(', ')}`)
   }
   const st = value('state')
   if (st !== undefined) {
@@ -405,7 +426,7 @@ function menuTemplate() {
     { type: 'separator' },
     {
       label: 'Animation',
-      submenu: ANIMS.map(([id, name]) => ({ label: name, type: 'radio', checked: current === id, click: () => patchSettings({ animation: id }) })),
+      submenu: menuAnims(current).map(([id, name]) => ({ label: name, type: 'radio', checked: current === id, click: () => patchSettings({ animation: id }) })),
     },
     { label: 'Loop after click', type: 'checkbox', checked: s.playMode === 'loop', click: (i) => patchSettings({ playMode: i.checked ? 'loop' : 'once' }) },
     { label: 'Sound effects', type: 'checkbox', checked: !!s.sound, click: (i) => patchSettings({ sound: i.checked }) },

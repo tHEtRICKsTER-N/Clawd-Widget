@@ -5,7 +5,7 @@ import { overlayUrl } from '../core/overlay'
 import type { ClawdButton } from '../core/renderer'
 import { DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, parseThemeCode, themeCode, type Colors, type Settings } from '../core/settings'
 import type { SettingsStore, StatsStore } from '../core/store'
-import { ANIM_LIST } from '../engine/animations'
+import { ANIMATIONS, ANIM_LIST, SEASONAL, offered } from '../engine/animations'
 import { COSMETICS, type CosmeticId } from '../engine/cosmetics'
 import type { AnimId } from '../engine/types'
 import { UltracodeButton } from '../UltracodeButton'
@@ -145,7 +145,7 @@ function Exporter({ s }: { s: Settings }) {
         <label className="sp-field">
           <span>Animation</span>
           <select value={anim} onChange={(e) => setAnim(e.target.value as AnimId)}>
-            {ANIM_LIST.map((a) => (
+            {[...ANIM_LIST, ...SEASONAL].map((a) => (
               <option key={a.id} value={a.id}>
                 {a.icon} {a.name}
               </option>
@@ -302,6 +302,13 @@ function ShareCode({ s, onApply }: { s: Settings; onApply: (t: { colors: Colors;
 }
 
 /** Whether the system asks for reduced motion (the button then tones itself down). */
+/** the picker: what's on offer today, plus the current pick if it's a seasonal one out of season */
+function pickable(current: Settings['animation']) {
+  const list = offered()
+  const picked = current === 'random' ? null : ANIMATIONS[current]
+  return picked && !list.includes(picked) ? [...list, picked] : list
+}
+
 function useReducedMotion() {
   const query = '(prefers-reduced-motion: reduce)'
   const [on, setOn] = useState(() => typeof matchMedia === 'function' && matchMedia(query).matches)
@@ -433,7 +440,7 @@ export function SettingsPanel({ store, host, compact, currentSite, extra, stats 
       <section className="sp-card">
         <h3>Animation</h3>
         <div className="sp-anims" role="radiogroup" aria-label="Animation">
-          {ANIM_LIST.map((a) => (
+          {pickable(s.animation).map((a) => (
             <button
               key={a.id}
               role="radio"

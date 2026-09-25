@@ -10,10 +10,9 @@
  */
 
 import { BODY, front } from '../engine/clawd'
-import { CELL } from '../engine/grid'
-import { CHECK, type Particle } from '../engine/particle'
+import { cellAt } from '../engine/grid'
+import { BUG, BUG_COLOR, CHECK, type Particle } from '../engine/particle'
 import { makePulse, type Pulse } from '../engine/pulses'
-import { SPRITE_ORIGIN, SPRITE_UNIT } from '../engine/sprites'
 import { pose, type Pose } from '../engine/types'
 
 /** where things come from: the button's left edge, in sprite px */
@@ -23,8 +22,7 @@ const GROUND = 24
 /** a jump peaks 9 px up (Clawd's head just stays inside the button) and lasts 2·JUMP_V/GRAVITY ≈ 0.63 s */
 const GRAVITY = 180
 const JUMP_V = 57
-const BUG = ['.#.#.', '#####', '.#.#.']
-const BUG_W = 5
+const BUG_W = BUG[0].length
 /** ✓s float this high: only a jump reaches them */
 const CHECK_Y = 1
 /** seconds before the first bug, and the gap between bugs (at the start) */
@@ -194,7 +192,7 @@ export class BugJump {
     // bugs scuttle: their legs flicker
     for (const b of this.bugs) {
       const legs = Math.floor(this.t / 0.1 + b.seed) % 2
-      out.push({ x: Math.round(b.x), y: GROUND - 2, glyph: legs ? BUG : [BUG[2], BUG[1], BUG[0]], color: '#ff4d5e', alpha: 1 })
+      out.push({ x: Math.round(b.x), y: GROUND - 2, glyph: legs ? BUG : [BUG[2], BUG[1], BUG[0]], color: BUG_COLOR, alpha: 1 })
     }
     for (const c of this.checks) out.push({ x: Math.round(c.x), y: CHECK_Y, glyph: CHECK, color: 'fx', alpha: 1 })
     return out
@@ -205,9 +203,4 @@ export class BugJump {
     if (this.t < 2.2) return 'BUG JUMP · click or space to jump'
     return `SCORE ${this.score}  HI ${this.best}`
   }
-}
-
-/** Grid cell centre under a sprite-px point (for pulses). */
-function cellAt(x: number, y: number) {
-  return { cx: (SPRITE_ORIGIN.x + x * SPRITE_UNIT) / CELL, cy: (SPRITE_ORIGIN.y + y * SPRITE_UNIT) / CELL }
 }

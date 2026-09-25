@@ -15,6 +15,7 @@
 
 import type { Pulse } from './pulses'
 import { hash } from './rand'
+import { SPRITE_ORIGIN, SPRITE_UNIT } from './sprites'
 
 export const CELL = 11
 export const CELL_INNER = 10
@@ -23,6 +24,13 @@ export const REF_H = 104
 export const COLS = Math.ceil(REF_W / CELL) // 62
 export const ROWS = Math.ceil(REF_H / CELL) // 10
 export const LEVELS = 20
+
+/** Grid position (in cells) under a sprite-px point, e.g. to centre a pulse on something; snap: that cell's centre. */
+export function cellAt(x: number, y: number, snap = false): { cx: number; cy: number } {
+  const cx = (SPRITE_ORIGIN.x + x * SPRITE_UNIT) / CELL
+  const cy = (SPRITE_ORIGIN.y + y * SPRITE_UNIT) / CELL
+  return snap ? { cx: Math.floor(cx) + 0.5, cy: Math.floor(cy) + 0.5 } : { cx, cy }
+}
 
 export function pulseRadius(p: Pulse, a: number): number {
   const a2 = a * a
