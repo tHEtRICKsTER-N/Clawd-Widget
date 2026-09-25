@@ -231,6 +231,7 @@ export class FloatingWidget {
       if (!dragging) {
         dragging = true
         this.wrap.classList.add('dragging')
+        this.button.setDragging(true)
         // desktop: from here the main process moves the window with the real cursor
         if (this.opts.mode === 'window') this.opts.windowDrag?.start()
       }
@@ -255,6 +256,7 @@ export class FloatingWidget {
         return
       }
       dragging = false
+      this.button.setDragging(false)
       if (this.opts.mode === 'page') this.settle()
     }
     slot.addEventListener('pointerup', end)

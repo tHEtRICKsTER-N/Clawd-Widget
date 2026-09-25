@@ -234,6 +234,10 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             <input type="checkbox" checked={s.showToolbar} onChange={(e) => update({ showToolbar: e.target.checked })} />
             Hover toolbar
           </label>
+          <label className="sp-check" title="Clawd dangles while you drag the widget and lands with a thud">
+            <input type="checkbox" checked={s.dragReact} onChange={(e) => update({ dragReact: e.target.checked })} />
+            Dangle when dragged
+          </label>
         </div>
         {host === 'extension' && (
           <>

@@ -27,7 +27,7 @@ npm run dev          # web playground at http://localhost:5178
 - **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
 - **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, or **Random**, which picks a different one on every click.
 - **Customizable:** label text, font (Inter, Space Grotesk, JetBrains Mono, two pixel fonts, System, Serif, or any installed font), bold, and colors for the background, background glow, text, bot, energy cells, energy glow and particles. Includes 7 presets and 4 sizes.
-- **Floating widget:** drag it anywhere. It docks to the nearest corner and snaps to edges. The hover toolbar has play, random, customize and hide.
+- **Floating widget:** drag it anywhere. Clawd dangles while you carry it and lands with a thud that shakes the grid (*Dangle when dragged*). It docks to the nearest corner and snaps to edges. The hover toolbar has play, random, customize and hide.
 - **Extension extras:** settings sync across your browsers (`chrome.storage.sync`) and update every open tab live. Hide it per site from the toolbar or popup. Shortcuts: `Alt+Shift+K` show/hide, `Alt+Shift+P` play random. The widget lives in a shadow root and its fonts are embedded, so page CSS and CSP can't break it.
 - **Desktop extras:** frameless, transparent and always on top. Clicks pass through the transparent margin. Right-click or the tray icon for animation, size, always-on-top, start with Windows, customize and quit.
 
@@ -41,6 +41,7 @@ src/engine/            pure, time-driven animation engine (no DOM)
   sprites.ts           traced guitar-playing frames
   animations/*.ts      one file per animation + registry, idle pose, random pick
   frame.ts             what a play shows at time t (loop seams, fade-out after a play)
+  reactions.ts         live reactions (dangle while dragged, thud on drop) as pure functions of time
 src/core/
   renderer.ts          ClawdButton: framework-free canvas renderer (theme, font, play/loop/idle)
   widget.ts            FloatingWidget: draggable/dockable wrapper (page or desktop-window mode)

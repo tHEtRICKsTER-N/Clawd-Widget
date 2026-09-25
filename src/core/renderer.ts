@@ -11,6 +11,7 @@ import { ANIMATIONS, idlePose, pickRandom } from '../engine/animations'
 import { BODY, type Gaze } from '../engine/clawd'
 import { lingerFrame, playFrame } from '../engine/frame'
 import { CELL, CELL_INNER, COLS, REF_H, REF_W, ROWS, computeField, createField } from '../engine/grid'
+import { dangle, drop, dropPulse } from '../engine/reactions'
 import type { Particle } from '../engine/particle'
 import type { Pulse } from '../engine/pulses'
 import { PALETTE, SPRITE_ORIGIN, SPRITE_UNIT } from '../engine/sprites'
@@ -89,6 +90,14 @@ export class ClawdButton {
   private stateCache: RendererState = { mode: 'idle', anim: null, t: 0, pose: '' }
   /** where the pointer was last seen (client px) and when (performance.now() ms) */
   private pointer: { x: number; y: number; at: number } | null = null
+  /** seconds since a drag started / since the drop (null: not happening) */
+  private dragT: number | null = null
+  private dropT: number | null = null
+  /** pulses fired by reactions, on the `clock` timebase */
+  private bursts: Pulse[] = []
+  private burstSeed = 0
+  /** seconds since the button was created */
+  private clock = 0
 
   constructor(parent: Element | ShadowRoot, settings: Settings, opts: RendererOptions = {}) {
     this.s = settings
@@ -148,6 +157,8 @@ export class ClawdButton {
     this.mode = 'play'
     this.playT = 0
     this.linger = null
+    this.dragT = this.dropT = null
+    this.bursts = []
     this.opts.onPlay?.(resolved)
   }
 
@@ -163,6 +174,23 @@ export class ClawdButton {
 
   setSpeed(x: number) {
     this.speed = x
+  }
+
+  /**
+   * The widget is being dragged (true) or was just let go (false). While resting, Clawd
+   * dangles during the drag and lands with a thud that shakes the grid.
+   */
+  setDragging(on: boolean) {
+    if (on) {
+      if (this.s.dragReact && this.mode === 'idle' && !this.controlled) {
+        this.dragT = 0
+        this.dropT = null
+      }
+    } else if (this.dragT !== null) {
+      this.dragT = null
+      this.dropT = 0
+      this.bursts.push(dropPulse(this.clock, 900 + (this.burstSeed++ % 64)))
+    }
   }
 
   /** Dev/testing: render a fixed time of one animation (null = back to normal). */
@@ -283,6 +311,7 @@ export class ClawdButton {
     this.raf = requestAnimationFrame(this.tick)
     const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0
     this.last = now
+    this.clock += dt * this.speed
     if (Math.max(1, Math.round(window.devicePixelRatio || 1)) !== this.dpr) this.resize()
 
     let anim: AnimationDef | null = null
@@ -316,7 +345,7 @@ export class ClawdButton {
       fieldT = f.fieldT
     } else {
       this.idleT += dt * this.speed
-      pose = idlePose(this.idleT, this.s.idleBlink, this.gaze(now))
+      pose = this.reaction(dt * this.speed) ?? idlePose(this.idleT, this.s.idleBlink, this.gaze(now))
       if (this.linger) {
         this.linger.t += dt * this.speed
         const f = lingerFrame(this.linger.anim, this.linger.end, this.linger.t)
@@ -326,6 +355,9 @@ export class ClawdButton {
           fieldT = f.fieldT
         }
       }
+      // reaction pulses, moved onto whichever clock the field is on this frame
+      this.bursts = this.bursts.filter((p) => this.clock - p.t0 < p.life * 1.15)
+      if (this.bursts.length) pulses = pulses.concat(this.bursts.map((p) => ({ ...p, t0: fieldT - (this.clock - p.t0) })))
     }
 
     const press = anim?.pressIntro && this.s.pressFlash ? t : Infinity
@@ -348,6 +380,15 @@ export class ClawdButton {
     this.drawGrid(pulses, fieldT)
     this.drawSprite(pose)
     this.drawFx(particles)
+  }
+
+  /** Pose of a drag / drop reaction in progress (null: none). */
+  private reaction(dt: number): Pose | null {
+    if (this.dragT !== null) return dangle((this.dragT += dt))
+    if (this.dropT === null) return null
+    const p = drop((this.dropT += dt))
+    if (!p) this.dropT = null
+    return p
   }
 
   /** Which way Clawd should look to watch the pointer (null: not watching). */

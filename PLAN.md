@@ -30,7 +30,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 - [x] **1.1 Eyes follow the cursor** (S). Desktop was checked headless; a manual run on Windows is still worth doing (see DEVLOG).
   Clawd watches your pointer while idle, in 8 directions, and looks straight at you when the pointer is on its face. After a few seconds of stillness it goes back to its normal blinks and glances. On desktop the main process sends the global cursor position, so Clawd watches the mouse anywhere on screen. Setting: *Eyes follow cursor* (on by default).
 
-- [~] **1.2 Dangles while dragged, thuds when dropped** (S)
+- [x] **1.2 Dangles while dragged, thuds when dropped** (S)
   While being dragged: air legs, arms up, wide eyes, a small wobble. On drop: crouch, then a `land` pulse through the grid. Works in page mode and desktop mode.
 
 - [ ] **1.3 Poke and combo** (S/M)
