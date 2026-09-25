@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('clawdDesktop', {
   onCommand: (cb) => on('command', cb),
   getLayout: () => ipcRenderer.invoke('layout:get'),
   onLayout: (cb) => on('layout', cb),
+  // global cursor position relative to the widget window, while the mouse moves
+  onCursor: (cb) => on('cursor', cb),
   // the main process follows the real cursor between these two calls
   dragStart: () => ipcRenderer.send('drag:start'),
   dragEnd: () => ipcRenderer.send('drag:end'),

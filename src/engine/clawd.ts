@@ -9,9 +9,13 @@ import type { SpriteFrame } from './sprites'
 export type Eyes = 'open' | 'closed' | 'happy' | 'wide' | 'look' | 'lookL' | 'lookR'
 export type Arm = 'side' | 'up' | 'high' | 'down' | 'none'
 export type Legs = 'stand' | 'crouch' | 'air'
+/** pupil offset for open eyes, each axis -1 | 0 | 1 (x < 0 = left, y < 0 = up) */
+export type Gaze = [number, number]
 
 export interface FrontPose {
   eyes?: Eyes
+  /** where open eyes look (cursor tracking) */
+  gaze?: Gaze
   left?: Arm
   right?: Arm
   legs?: Legs
@@ -26,6 +30,18 @@ export interface FrontPose {
   /** laptop in front of the body; typing: 0 both hands down, 1 left up, 2 right up */
   laptop?: boolean
   typing?: 0 | 1 | 2
+}
+
+/** gaze per 45° sector, clockwise from "right" (screen y points down) */
+const GAZES: Gaze[] = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]]
+
+/**
+ * Which way to look at something (dx, dy) away from the eyes, in screen axes.
+ * Closer than `face` it's right in front of Clawd: look straight ahead.
+ */
+export function gazeToward(dx: number, dy: number, face: number): Gaze {
+  if (Math.hypot(dx, dy) < face) return [0, 0]
+  return GAZES[(Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8]
 }
 
 const TOP = -12
@@ -73,10 +89,11 @@ export function front(p: FrontPose = {}): SpriteFrame {
   arm('r', right)
 
   // eyes
+  const [gx, gy] = p.gaze ?? [0, 0]
   const eye = (ex: number) => {
     switch (eyes) {
       case 'open':
-        rect(ex, b + 2, 2, 2, 'E')
+        rect(ex + gx, b + 2 + gy, 2, 2, 'E')
         break
       case 'wide':
         rect(ex, b + 2, 2, 2, 'E')

@@ -188,8 +188,36 @@ function createWidget() {
   widget.on('closed', () => {
     endDrag()
     widget = null
+    updateCursorFeed()
   })
   state.btn = btn
+  updateCursorFeed()
+}
+
+// ───────────────────────── cursor feed ─────────────────────────
+// The widget page only sees the mouse inside its own small window. So that Clawd's eyes can
+// follow the cursor anywhere on screen, send its window-relative position while it moves.
+let cursorTimer = null
+let lastCursor = null
+
+function updateCursorFeed() {
+  const want = !!widget && widget.isVisible() && state.settings.followCursor !== false
+  if (want === !!cursorTimer) return
+  if (want) cursorTimer = setInterval(sendCursor, 50)
+  else {
+    clearInterval(cursorTimer)
+    cursorTimer = null
+    lastCursor = null
+  }
+}
+
+function sendCursor() {
+  if (!widget || drag) return
+  const p = screen.getCursorScreenPoint()
+  if (lastCursor && p.x === lastCursor.x && p.y === lastCursor.y) return
+  lastCursor = p
+  const b = widget.getBounds()
+  widget.webContents.send('cursor', p.x - b.x, p.y - b.y)
 }
 
 function openSettings() {
@@ -221,6 +249,7 @@ function toggleWidget(show) {
     widget.showInactive()
   }
   else widget.hide()
+  updateCursorFeed()
   rebuildTray()
 }
 
@@ -240,6 +269,7 @@ function setSettings(next) {
     placeBtn({ x: state.btn.x - dw, y: state.btn.y - dh }, true)
   }
   broadcast()
+  updateCursorFeed()
   rebuildTray()
 }
 

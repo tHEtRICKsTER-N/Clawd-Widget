@@ -34,6 +34,7 @@ async function main() {
   api.onLayout(applyLayout)
 
   store.subscribe((s) => w.setSettings(s))
+  api.onCursor((x, y) => w.button.lookAt(x, y))
   api.onCommand((cmd, arg) => {
     if (cmd === 'play') w.play(arg as AnimId | 'random' | undefined)
   })

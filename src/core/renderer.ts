@@ -8,6 +8,7 @@
  */
 
 import { ANIMATIONS, idlePose, loopTime, pickRandom } from '../engine/animations'
+import { gazeToward, type Gaze } from '../engine/clawd'
 import { CELL, CELL_INNER, COLS, REF_H, REF_W, ROWS, computeField, createField } from '../engine/grid'
 import type { Particle } from '../engine/particle'
 import type { Pulse } from '../engine/pulses'
@@ -35,6 +36,12 @@ const LABEL_LEFT = 22
 const LABEL_RIGHT = 540
 const LABEL_SIZE = 30.5
 const LINGER = 1.3
+/** midpoint between idle Clawd's eyes, reference px */
+const EYES_REF = { x: SPRITE_ORIGIN.x + 16.5 * SPRITE_UNIT, y: SPRITE_ORIGIN.y + 12 * SPRITE_UNIT }
+/** a pointer this close to the eyes (reference px) is on Clawd's face: look straight at it */
+const FACE_R = 14
+/** keep watching this long after the pointer last moved, ms */
+const WATCH_MS = 5000
 
 export interface RendererOptions {
   /** called when a single play finishes */
@@ -84,6 +91,9 @@ export class ClawdButton {
   private palette: Record<string, string> = { ...PALETTE }
   private fxColors: Record<string, string> = {}
   private stateCache: RendererState = { mode: 'idle', anim: null, t: 0, pose: '' }
+  /** last known pointer, client coordinates; dirty = gaze needs recomputing */
+  private pointer = { x: 0, y: 0, at: -Infinity, dirty: false }
+  private gaze: Gaze = [0, 0]
 
   constructor(parent: Element | ShadowRoot, settings: Settings, opts: RendererOptions = {}) {
     this.s = settings
@@ -118,6 +128,8 @@ export class ClawdButton {
     this.el = el
     parent.appendChild(el)
     this.applySettings()
+    // capture phase so pages that stop propagation can't blind Clawd
+    window.addEventListener('pointermove', this.onPointer, { passive: true, capture: true })
     this.raf = requestAnimationFrame(this.tick)
   }
 
@@ -168,10 +180,26 @@ export class ClawdButton {
     return this.stateCache
   }
 
+  /**
+   * Tell idle Clawd where the pointer is, in client coordinates of this window.
+   * Pointer moves over the page are picked up automatically; hosts that know more
+   * (the desktop app tracks the cursor across the whole screen) call this too.
+   */
+  lookAt(x: number, y: number) {
+    const p = this.pointer
+    p.x = x
+    p.y = y
+    p.at = performance.now()
+    p.dirty = true
+  }
+
   destroy() {
     cancelAnimationFrame(this.raf)
+    window.removeEventListener('pointermove', this.onPointer, { capture: true })
     this.el.remove()
   }
+
+  private onPointer = (e: PointerEvent) => this.lookAt(e.clientX, e.clientY)
 
   // ───────────────────────── settings → DOM ─────────────────────────
 
@@ -223,6 +251,7 @@ export class ClawdButton {
     }
 
     this.resize()
+    this.pointer.dirty = true
     const fontChanged = !prev || prev.font !== s.font || prev.customFont !== s.customFont || prev.bold !== s.bold
     this.fitLabel()
     if (fontChanged) void ensureFont(s.font).then(() => this.fitLabel())
@@ -304,7 +333,7 @@ export class ClawdButton {
       }
     } else {
       this.idleT += dt * this.speed
-      pose = idlePose(this.idleT, this.s.idleBlink)
+      pose = idlePose(this.idleT, this.s.idleBlink, this.watch(now))
       if (this.linger) {
         this.linger.t += dt * this.speed
         const L = this.linger
@@ -336,6 +365,19 @@ export class ClawdButton {
     this.drawGrid(pulses, fieldT)
     this.drawSprite(pose)
     this.drawFx(particles)
+  }
+
+  /** Which way idle Clawd looks: toward a pointer that moved recently, else null (normal idle). */
+  private watch(now: number): Gaze | null {
+    const p = this.pointer
+    if (!this.s.followCursor || now - p.at > WATCH_MS) return null
+    if (p.dirty) {
+      p.dirty = false
+      const r = this.el.getBoundingClientRect()
+      const k = r.width / REF_W
+      this.gaze = gazeToward(p.x - (r.left + EYES_REF.x * k), p.y - (r.top + EYES_REF.y * k), FACE_R * k)
+    }
+    return this.gaze
   }
 
   // ───────────────────────── drawing ─────────────────────────
