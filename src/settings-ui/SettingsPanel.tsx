@@ -204,6 +204,10 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             <input type="checkbox" checked={s.pokes} onChange={(e) => update({ pokes: e.target.checked })} />
             Poke Clawd
           </label>
+          <label className="sp-check" title="Every few minutes Clawd stretches, yawns, scratches or wanders off. Left alone for a while, it dozes off, and wakes when the pointer comes near.">
+            <input type="checkbox" checked={s.idleAntics} onChange={(e) => update({ idleAntics: e.target.checked })} />
+            Idle antics
+          </label>
         </div>
       </section>
 

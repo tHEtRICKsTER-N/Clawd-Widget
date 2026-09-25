@@ -8,7 +8,8 @@ import type { SpriteFrame } from './sprites'
 
 export type Eyes = 'open' | 'closed' | 'happy' | 'wide' | 'look' | 'lookL' | 'lookR'
 export type Arm = 'side' | 'up' | 'high' | 'down' | 'none'
-export type Legs = 'stand' | 'crouch' | 'air'
+/** stepA / stepB: walking, one pair of legs lifted off the ground */
+export type Legs = 'stand' | 'crouch' | 'air' | 'stepA' | 'stepB'
 /** a direction, one step each way: [-1 left … 1 right, -1 up … 1 down]; [0, 0] = straight at you */
 export type Gaze = [x: number, y: number]
 
@@ -22,8 +23,9 @@ export interface FrontPose {
   /** body offset in sprite px (dy < 0 = up) */
   dx?: number
   dy?: number
-  mouth?: boolean
-  /** body squashed down by n px while the feet stay planted (breathing) */
+  /** true: a small mouth; 'open': wide open (yawning) */
+  mouth?: boolean | 'open'
+  /** body squashed down by n px while the feet stay planted (breathing); negative stretches it taller */
   squash?: number
   /** draw hands on the laptop (default true) */
   hands?: boolean
@@ -64,7 +66,11 @@ export function front(p: FrontPose = {}): SpriteFrame {
   // body + legs
   rect(X + 4, b, 17, 12 - sq, 'O')
   const legRows = crouch ? 2 : 4
-  for (const lx of [4, 8, 15, 19]) rect(X + lx, b + 12 - sq, 2, legRows, 'O')
+  for (const lx of [4, 8, 15, 19]) {
+    // walking: the lifted pair is a pixel shorter, so its feet leave the ground
+    const lifted = (legs === 'stepA' && (lx === 4 || lx === 15)) || (legs === 'stepB' && (lx === 8 || lx === 19))
+    rect(X + lx, b + 12 - sq, 2, legRows - (lifted ? 1 : 0), 'O')
+  }
 
   // arms
   const arm = (side: 'l' | 'r', a: Arm) => {
@@ -110,7 +116,8 @@ export function front(p: FrontPose = {}): SpriteFrame {
   }
   eye(X + 6)
   eye(X + 17)
-  if (p.mouth) rect(X + 11, b + 6, 3, 1, 'E')
+  if (p.mouth === 'open') rect(X + 11, b + 6, 3, 2, 'E')
+  else if (p.mouth) rect(X + 11, b + 6, 3, 1, 'E')
 
   // laptop: back of the lid faces us, logo pixel in the middle
   if (p.laptop) {

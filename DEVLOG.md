@@ -4,6 +4,32 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 1.4 Idle life
+
+**Antics.** Every 90–240 s (random) a resting Clawd does one of four things, never the same one twice in a row:
+- **stretch** (1.6 s): arms up, eyes shut, two pixels taller (`squash: -2`), with a soft glow.
+- **yawn** (1.9 s): eyes shut, mouth wide open, a breath in.
+- **scratch** (1.7 s): one arm scratching its head, eyes squeezed happily shut.
+- **wander** (6.3 s): looks left, walks 56 sprite px (about a quarter of the button) at 24 px/s with alternating legs, looks around, and walks back. A faint cell lights up under its feet every other step.
+
+Antics wait while someone is playing with Clawd: they're postponed while the pointer has been near within the last 8 s. They are not postponed just because the mouse is moving elsewhere, so on desktop they still happen while you work.
+
+**Dozing.** After 5 minutes with no pointer near Clawd (within 24 sprite px of it) and no click, drag or play, it nods off with a yawn. Then it sleeps: breathing every 0.9 s, a Z rising every 1.8 s, and a soft glow every 3.6 s. Pointer movement elsewhere doesn't wake it. When the pointer comes near, it wakes with a startled jump and a "!", then blinks awake. A poke, drag or play also ends a doze, an antic or a wake-up. Setting: *Idle antics*, on by default. Turning it off ends whatever is showing and stops the doze timer.
+
+How it's split:
+- **Engine.** `src/engine/antics.ts` defines an `Act` (duration, `pose(t)`, `pulses(t)`, `particles(t)`), a mini animation: the four antics, `doze` (endless) and `wake`. `front()` gained walking legs (`stepA`/`stepB`: one pair a pixel shorter) and `mouth: 'open'`. Existing options render the same (`check:anims`: all animations `same`).
+- **`ClawdLife`.** A single `act` slot (antic, doze or wake), started and ended in `updateAct()`. Reactions win over acts, and acts win over the idle or watching pose. "Near" is checked once per frame, and only when the pointer has moved. The same lazily read button rect is used for the gaze, so there's at most one `getBoundingClientRect` per frame. Hit testing follows the pose's `ox`, so you can poke a wandering Clawd where it is (it pops back home for the poke).
+- **`check:anims`.** Six new entries (`antic: stretch/yawn/scratch/wander/doze/wake`, doze sampled for 12 s). The snapshot only gained lines.
+
+Verified (Chromium, playground widget; for most cases the timers were forced by setting `nextAntic` or `nearAt` on the live object, then run in real time):
+- A due antic starts on its own (scratch) and the next is scheduled about 99 s later. Each antic runs its whole pose sequence and returns to idle. Screenshots: taller stretch, open-mouthed yawn, walking with the footprint cells, Zzz while dozing, the startle with "!".
+- A click on Clawd at the far end of the wander pokes it. A pointer moving far away doesn't wake it; moving near gives `startle` → `awake` → watching. An antic that is due while the pointer is near is postponed. With the setting off, nothing starts. A play clears an antic.
+- Regressions: the gaze, drag and poke suites give the same results as before. The renderer pixel check is identical (2,285 frames). The desktop cursor test passes.
+- The *Between plays* card with *Idle antics* wraps cleanly in the playground and the popup.
+- `tsc`, `check:anims` (19 × `same`), `build:ext` and `build:desktop` pass.
+
+- Natural timing, with nothing forced: the renderer at 60× speed (`setSpeed(60)`) with the pointer parked far away. A scratch fired at 207 s of simulated idle, and Clawd nodded off at 301 s.
+
 ## 2026-09-25 · 1.3 Poke and combo
 
 A click on a resting Clawd's body or legs, with a sprite pixel of slack, is a poke instead of a play. Clawd squishes flat with its eyes shut and arms flinching up for 0.08 s, then bounces back with happy eyes until 0.26 s. A small heart floats up and away, 60% to the right. A ring pulse goes through the grid. Clicks anywhere else on the button still play, and so does any click while an animation is running. Setting: *Poke Clawd*, on by default.

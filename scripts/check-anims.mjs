@@ -5,8 +5,9 @@
 //
 // Each animation is sampled at 60 fps through one play, two more loops and the fade-out
 // after it ends. A sample covers what the renderer draws: the sprite, the particles, every
-// grid cell's energy and glow, and the pressed-flash overlays. The idle pose and the live
-// reactions (drag, drop, pokes, combo, celebration) are checked too.
+// grid cell's energy and glow, and the pressed-flash overlays. The idle pose, the live
+// reactions (drag, drop, pokes, combo, celebration) and the idle antics (stretch, yawn,
+// scratch, wander, dozing, waking) are checked too.
 // Samples are hashed in quarter-second chunks, so a change is reported with its time.
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -30,12 +31,13 @@ const vite = await createServer({
 let current
 try {
   const load = (p) => vite.ssrLoadModule(p)
-  const [{ ANIM_LIST, idlePose }, { playFrame, lingerFrame }, { computeField, createField, LEVELS }, { darkMix, introGlow }, R] = await Promise.all([
+  const [{ ANIM_LIST, idlePose }, { playFrame, lingerFrame }, { computeField, createField, LEVELS }, { darkMix, introGlow }, R, Antics] = await Promise.all([
     load('/src/engine/animations/index.ts'),
     load('/src/engine/frame.ts'),
     load('/src/engine/grid.ts'),
     load('/src/engine/timeline.ts'),
     load('/src/engine/reactions.ts'),
+    load('/src/engine/antics.ts'),
   ])
   const field = createField()
 
@@ -105,6 +107,12 @@ try {
   current['reaction: celebrate'] = over(R.CELEBRATE + 0.1, (t) =>
     [orNone(R.celebrate(t)), particlesKey(R.celebrateParticles(t, 3)), fieldKey(t, R.celebratePulses(0, 800).filter((p) => p.t0 <= t))].join('#'),
   )
+
+  // antics, dozing and waking up
+  const act = (a, secs) => over(secs, (t) => [poseKey(a.pose(t)), particlesKey(a.particles(t)), fieldKey(t, a.pulses(t))].join('#'))
+  for (const [id, a] of Object.entries(Antics.ANTICS)) current[`antic: ${id}`] = act(a, a.duration + 0.1)
+  current['antic: doze'] = act(Antics.doze, 12)
+  current['antic: wake'] = act(Antics.wake, Antics.wake.duration + 0.1)
 } finally {
   await vite.close()
 }

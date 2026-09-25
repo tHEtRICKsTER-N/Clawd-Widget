@@ -38,6 +38,8 @@ export interface Settings {
   dragReact: boolean
   /** clicking Clawd itself pokes it (squish, heart, combo) instead of playing */
   pokes: boolean
+  /** now and then Clawd stretches, yawns, scratches or wanders; left alone for a while, it dozes off */
+  idleAntics: boolean
   /** widget width in CSS px (height follows the 676×104 aspect) */
   size: number
   showToolbar: boolean
@@ -126,6 +128,7 @@ export const DEFAULT_SETTINGS: Settings = {
   eyesFollow: true,
   dragReact: true,
   pokes: true,
+  idleAntics: true,
   size: 340,
   showToolbar: true,
   enabled: true,

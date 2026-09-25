@@ -36,7 +36,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 - [x] **1.3 Poke and combo** (S/M)
   A click on Clawd's body gets a squish plus a heart instead of a full play. The rest of the button still plays the animation. Rapid pokes build a combo ("x5!") with bigger pulses on each hit and a small celebration at 10.
 
-- [ ] **1.4 Idle life** (M)
+- [x] **1.4 Idle life** (M)
   Every few minutes, a rare micro-animation: stretch, yawn, scratch, or wander across the button and back. After a long idle it dozes off (Sleepy pose plus Zzz) and wakes up when the cursor comes near. Setting: *Idle antics*.
 
 - [ ] **1.5 Idle loop sleeps between changes** (S)
