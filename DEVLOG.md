@@ -4,6 +4,25 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 2.1 Reduced motion and flash cap
+
+When the system asks for reduced motion (`prefers-reduced-motion: reduce`; on Windows that's *Animation effects* off, and Electron follows it), the button tones itself down. Nothing changes for anyone else: the renderer pixel check is identical and every `check:anims` entry is `same`.
+
+- **At most 3 flashes a second.** The plan asked to cap pulse strength, but a cap alone doesn't change the rate the plan was worried about. So `calmPulses()` (engine, pure) also drops any pulse that starts less than 0.34 s after another one: WCAG 2.3.1 allows at most 3 flashes in any second, and 0.34 s is just over 1/3 s. A burst of rapid strums becomes its first strum. Measured over a play, two loops and the fade-out, the most pulses starting in any 1 s window is: Guitar Jam 6 → 2, Hello 3 → 2, Jump 3, Code 3, Dance 3, Sleepy 2.
+- **Dimmer.** Every pulse's strength is capped at 0.4 (normally up to 1.02), which also dims the coloured under-glow.
+- **No tap flash.** Guitar Jam's dark "pressed" flash and over-bright intro glow are skipped, whatever *Tap flash* says.
+- **Calm eyes.** The gaze holds a direction for at least 0.6 s before following the pointer somewhere else. Napping (1.5) wakes up in time to apply a held change.
+- **Settings.** The Animation card says the button is toned down while the system asks for reduced motion. It follows the setting live, and so does the button.
+
+**Design note: why "any pulse within 0.34 s before".** The first version kept a pulse if it came 0.34 s after the last *kept* one. That chains: when the oldest pulse left the list, every later decision flipped, and a nearly dead Guitar Jam strum popped back in once per loop (found by a test that tracks each pulse's identity frame by frame). The final rule looks only 0.34 s back, and anything that recent is always still listed, so no pulse ever appears mid-life: 0 pop-ins across all six animations, looping and play-once. To keep that true for reaction pulses (pokes, drops), `ClawdLife` now keeps them listed for 2.2 s, as the animations do, and only counts them as "moving" while they are still fading. Twinkles light single cells, too small to be flashes, so they are neither dropped nor counted.
+
+`check:anims`: six new `calm: <animation>` entries fingerprint each animation's grid under reduced motion (sprite and particles don't change). The snapshot only gained lines.
+
+Verified:
+- Chromium with reduced motion emulated: at 0.05 s into Guitar Jam the dark overlay's opacity is 1 normally and 0 when reduced. Just after the second B strum, the grid's total brightness goes from 5.17 M to 2.03 M, and the screenshot shows the fresh strum's white disc gone and the earlier ring dimmed. Switching back live gives the identical normal grid. Sweeping the pointer around Clawd for 2 s gives 40 eye-direction changes normally (fastest 46 ms apart) and 5 when reduced (at least 616 ms apart). The settings note shows.
+- Normal users: renderer pixel check identical (2,285 frames). The gaze, drag, poke, antics and nap suites all pass unchanged. Desktop cursor test passes.
+- `tsc`, `check:anims` (25 × `same`), `build:ext` and `build:desktop` pass.
+
 ## 2026-09-25 · 1.5 Idle loop sleeps between changes
 
 While Clawd rests with nothing moving, the frame loop no longer runs 60 times a second. It naps on a timer until the next scheduled change, and input wakes it at once. Measured in Chromium: **9 frames in 8 s at rest** (before: about 480), 4 frames in the 4 s after the pointer stops, 2 frames in 3 s after a play has faded out. Dozing runs at about 10–12 fps.

@@ -11,7 +11,7 @@ import { ANIMATIONS, pickRandom } from '../engine/animations'
 import { lingerFrame, playFrame } from '../engine/frame'
 import { CELL, CELL_INNER, COLS, REF_H, REF_W, ROWS, computeField, createField } from '../engine/grid'
 import type { Particle } from '../engine/particle'
-import type { Pulse } from '../engine/pulses'
+import { calmPulses, type Pulse } from '../engine/pulses'
 import { PALETTE, SPRITE_ORIGIN, SPRITE_UNIT } from '../engine/sprites'
 import { darkMix, introGlow } from '../engine/timeline'
 import type { AnimationDef, AnimId, Pose } from '../engine/types'
@@ -94,6 +94,9 @@ export class ClawdButton {
   private stateCache: RendererState = { mode: 'idle', anim: null, t: 0, pose: '' }
   /** what Clawd does between plays (watching, dragging, pokes) */
   private life = new ClawdLife(() => this.spriteToClient())
+  /** the system asks for reduced motion: calmer pulses, no tap flash, calmer eyes */
+  private motion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
+  private calm = !!this.motion?.matches
 
   constructor(parent: Element | ShadowRoot, settings: Settings, opts: RendererOptions = {}) {
     this.s = settings
@@ -129,6 +132,8 @@ export class ClawdButton {
     parent.appendChild(el)
     this.applySettings()
     window.addEventListener('pointermove', this.onPointerMove, { capture: true, passive: true })
+    this.motion?.addEventListener('change', this.onMotion)
+    this.life.calm = this.calm
     this.raf = requestAnimationFrame(this.tick)
   }
 
@@ -220,10 +225,18 @@ export class ClawdButton {
     cancelAnimationFrame(this.raf)
     clearTimeout(this.nap)
     window.removeEventListener('pointermove', this.onPointerMove, { capture: true })
+    this.motion?.removeEventListener('change', this.onMotion)
     this.el.remove()
   }
 
   private onPointerMove = (e: PointerEvent) => this.lookAt(e.clientX, e.clientY)
+
+  private onMotion = () => {
+    this.calm = !!this.motion?.matches
+    this.life.calm = this.calm
+    this.drawn = null
+    this.wake()
+  }
 
   // ───────────────────────── settings → DOM ─────────────────────────
 
@@ -412,7 +425,9 @@ export class ClawdButton {
       if (!this.linger && this.speed === 1) rest = life.rest
     }
 
-    const press = anim?.pressIntro && this.s.pressFlash ? t : Infinity
+    // reduced motion: no tap flash, and pulses thinned to at most 3 a second and toned down
+    const press = anim?.pressIntro && this.s.pressFlash && !this.calm ? t : Infinity
+    if (this.calm && pulses.length) pulses = calmPulses(pulses)
     const dm = darkMix(press)
     const ig = introGlow(press)
     this.stateCache = {

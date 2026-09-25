@@ -42,6 +42,10 @@ const DOZE_AFTER = 300
 const NEAR = 24
 /** seconds between frames while dozing (its breathing, Zzz and glow are slow and pixel-stepped) */
 const DOZE_FRAME = 1 / 12
+/** reduced motion: ms the eyes hold a direction before following the pointer somewhere else */
+const CALM_GAZE_HOLD = 600
+/** seconds fired pulses stay listed after they start, long after they fade: calm mode's thinning looks back at them */
+const BURST_KEEP = 2.2
 
 /** Sprite px → client px, for where the button is right now. */
 export type SpriteToClient = (col: number, row: number) => [x: number, y: number]
@@ -58,6 +62,8 @@ export interface LifeFrame {
 const gap = () => ANTIC_GAP[0] + Math.random() * (ANTIC_GAP[1] - ANTIC_GAP[0])
 
 export class ClawdLife {
+  /** reduced motion (set by the renderer): the eyes change direction at most every CALM_GAZE_HOLD ms */
+  calm = false
   /** seconds of life so far; everything below is timed on this clock */
   private clock = 0
   /** where the pointer was last seen (client px) and when (performance.now() ms) */
@@ -81,6 +87,9 @@ export class ClawdLife {
   private nearAt = 0
   /** sprite px offset of the pose on screen (a wandering Clawd isn't at home) */
   private shownOx = 0
+  /** reduced motion: the gaze on screen, and when it may change next (performance.now() ms) */
+  private shownGaze: Gaze | null = null
+  private gazeFree = 0
 
   /** `place` maps sprite px to client px (reads the button's position, so call it sparingly) */
   constructor(private place: () => SpriteToClient) {}
@@ -180,10 +189,11 @@ export class ClawdLife {
     particles.push(...comboText(this.combo, c - this.pokeAt, cel))
     if (cel < CELEBRATE) particles.push(...celebrateParticles(cel, this.celebrateSeed))
 
-    this.bursts = this.bursts.filter((b) => c - b.t0 < b.life * 1.15)
+    this.bursts = this.bursts.filter((b) => c - b.t0 < BURST_KEEP)
     const pulses = this.bursts.filter((b) => b.t0 <= c).map((b) => ({ ...b, t0: fieldT - (c - b.t0) }))
+    const fading = this.bursts.some((b) => b.t0 <= c && c - b.t0 < b.life * 1.15)
     // anything still fading or moving means the next frame is needed right away
-    const moving = !!reaction || this.hearts.length > 0 || this.bursts.length > 0 || c - this.pokeAt < COMBO_WINDOW + 0.5 || cel < CELEBRATE
+    const moving = !!reaction || this.hearts.length > 0 || fading || c - this.pokeAt < COMBO_WINDOW + 0.5 || cel < CELEBRATE
     let rest = moving ? 0 : this.rest(c, now, idleT, s, !!gaze)
     if (act) {
       // the act's pulses are on its own clock
@@ -199,6 +209,7 @@ export class ClawdLife {
   private rest(c: number, now: number, idleT: number, s: Settings, watching: boolean): number {
     let rest = idleNextChange(idleT, s.idleBlink, watching)
     if (watching && this.pointer) rest = Math.min(rest, (this.pointer.at + WATCH_FOR - now) / 1000 + 0.001)
+    if (this.calm && now < this.gazeFree) rest = Math.min(rest, (this.gazeFree - now) / 1000 + 0.001)
     if (s.idleAntics) rest = Math.min(rest, this.nextAntic - c, this.nearAt + DOZE_AFTER - c)
     return Math.max(0, rest)
   }
@@ -246,8 +257,20 @@ export class ClawdLife {
     return p.x >= x0 && p.x < x1 && p.y >= y0 && p.y < y1
   }
 
-  /** Which way to look to watch the pointer (null: not watching). */
+  /** Which way to look to watch the pointer (null: not watching); calmed under reduced motion. */
   private gaze(now: number, place: () => SpriteToClient): Gaze | null {
+    const g = this.pointerGaze(now, place)
+    if (!this.calm) return g
+    const shown = this.shownGaze
+    if (g?.[0] === shown?.[0] && g?.[1] === shown?.[1]) return g
+    // too soon after the last change: keep looking where it was
+    if (now < this.gazeFree) return shown
+    this.shownGaze = g
+    this.gazeFree = now + CALM_GAZE_HOLD
+    return g
+  }
+
+  private pointerGaze(now: number, place: () => SpriteToClient): Gaze | null {
     const p = this.pointer
     if (!p || now - p.at > WATCH_FOR) return null
     const at = place()

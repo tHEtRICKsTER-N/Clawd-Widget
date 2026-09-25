@@ -29,6 +29,7 @@ npm run dev          # web playground at http://localhost:5178
 - **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
 - **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, or **Random**, which picks a different one on every click.
 - **Customizable:** label text, font (Inter, Space Grotesk, JetBrains Mono, two pixel fonts, System, Serif, or any installed font), bold, and colors for the background, background glow, text, bot, energy cells, energy glow and particles. Includes 7 presets and 4 sizes.
+- **Reduced motion:** when your system asks for reduced motion, the grid flashes at most 3 times a second (a burst of rapid strums becomes one pulse) and less brightly, the tap flash is skipped, and Clawd's eyes change direction at most every 0.6 s. Nothing changes for everyone else.
 - **Light at rest:** while Clawd is resting, the widget only draws when something changes (a blink, the pointer moving, an antic), about once a second instead of 60 times. Dozing runs at a relaxed 12 fps.
 - **Floating widget:** drag it anywhere. Clawd dangles while you carry it and lands with a thud that shakes the grid (*Dangle when dragged*). It docks to the nearest corner and snaps to edges. The hover toolbar has play, random, customize and hide.
 - **Extension extras:** settings sync across your browsers (`chrome.storage.sync`) and update every open tab live. Hide it per site from the toolbar or popup. Shortcuts: `Alt+Shift+K` show/hide, `Alt+Shift+P` play random. The widget lives in a shadow root and its fonts are embedded, so page CSS and CSP can't break it.
@@ -73,7 +74,7 @@ Create `src/engine/animations/<name>.ts` exporting an `AnimationDef` (`duration`
 
 ## Dev tools
 
-- `npm run check:anims`: checks that every animation, the idle pose, the live reactions and the idle antics still produce exactly the same frames (sprite, particles, every grid cell, flash overlays; sampled at 60 fps through a play, two loops and the fade-out). It reports the first time that differs. Only run it with `--update` when you add an animation or mean to change one. The snapshot is `scripts/anims.snapshot.json`.
+- `npm run check:anims`: checks that every animation (normal and under reduced motion), the idle pose, the live reactions and the idle antics still produce exactly the same frames (sprite, particles, every grid cell, flash overlays; sampled at 60 fps through a play, two loops and the fade-out). It reports the first time that differs. Only run it with `--update` when you add an animation or mean to change one. The snapshot is `scripts/anims.snapshot.json`.
 - **Reference compare** tab: speed 25 / 50 / 100 / 200 % (keys 1–4), play/pause (space), frame step (←/→), scrubber, and the reference clip stacked, overlaid or difference-blended. `?t=7.3` opens paused at that time.
 - `?sheet=<animation>&step=0.15`: contact sheet of one animation.
 - `dev/ext-harness.html`: loads the built `content.js` into a deliberately hostile page with a stubbed `chrome.*`.

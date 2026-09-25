@@ -27,8 +27,23 @@ const COLOR_FIELDS: { key: keyof Colors; label: string; group: 'button' | 'bot' 
   { key: 'particles', label: 'Notes & sparks', group: 'effects' },
 ]
 
+/** Whether the system asks for reduced motion (the button then tones itself down). */
+function useReducedMotion() {
+  const query = '(prefers-reduced-motion: reduce)'
+  const [on, setOn] = useState(() => typeof matchMedia === 'function' && matchMedia(query).matches)
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return
+    const m = matchMedia(query)
+    const f = () => setOn(m.matches)
+    m.addEventListener('change', f)
+    return () => m.removeEventListener('change', f)
+  }, [])
+  return on
+}
+
 export function SettingsPanel({ store, host, compact, currentSite, extra }: SettingsPanelProps) {
   const [s, setS] = useState<Settings | null>(null)
+  const reducedMotion = useReducedMotion()
   const btn = useRef<ClawdButton | null>(null)
   const saveTimer = useRef<number>(0)
   const pending = useRef<Settings | null>(null)
@@ -183,6 +198,12 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             Tap flash
           </label>
         </div>
+        {reducedMotion && (
+          <p className="sp-hint">
+            Your system asks for reduced motion, so the grid flashes at most 3 times a second and less brightly, the tap flash is skipped and
+            Clawd's eyes move calmly.
+          </p>
+        )}
       </section>
 
       <section className="sp-card">

@@ -44,7 +44,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 
 ## Phase 2: Safety
 
-- [ ] **2.1 Reduced motion and flash cap** (S)
+- [x] **2.1 Reduced motion and flash cap** (S)
   Guitar Jam's strums flash near-white cells about 5 times a second, above the WCAG guideline of 3 a second. Under `prefers-reduced-motion`, cap pulse strength, skip the tap flash, and keep the cursor tracking calm. Nothing changes for other users.
 
 ## Phase 3: Claude Code integration

@@ -105,3 +105,22 @@ export function scheduled(t: number, events: PulseEvent[], seedBase = 0, lookbac
   })
   return out
 }
+
+/** strongest pulse under reduced motion */
+export const CALM_CAP = 0.4
+/** under reduced motion a pulse needs this much quiet before it (> 1/3 s: at most 3 flashes a second, WCAG 2.3.1) */
+export const CALM_GAP = 0.34
+
+/**
+ * Reduced motion: drop every pulse that starts less than CALM_GAP after another one, so a
+ * burst of rapid strums becomes its first strum and no more than 3 pulses start in any
+ * second, and cap how bright any pulse gets. The rule only looks CALM_GAP back, so it
+ * never changes its mind as old pulses expire. Twinkles light single cells, too small to
+ * count as flashes, so they are neither dropped nor counted.
+ */
+export function calmPulses(list: Pulse[]): Pulse[] {
+  const starts = list.filter((p) => p.kind !== 'twinkle').map((p) => p.t0)
+  return list
+    .filter((p) => p.kind === 'twinkle' || !starts.some((t0) => t0 < p.t0 && p.t0 - t0 < CALM_GAP))
+    .map((p) => (p.strength > CALM_CAP ? { ...p, strength: CALM_CAP } : p))
+}
