@@ -70,6 +70,7 @@ function Achievements({ store, wearing, onWear }: { store: StatsStore; wearing: 
           )
         })}
       </ul>
+      {st.bugJumpBest > 0 && <div className="sp-sub">Bug Jump high score: {st.bugJumpBest}</div>}
       <div className="sp-sub">Wear</div>
       <div className="sp-wear" role="radiogroup" aria-label="What Clawd wears">
         <button role="radio" aria-checked={wearing === 'none'} className={wearing === 'none' ? 'on' : ''} onClick={() => onWear('none')}>

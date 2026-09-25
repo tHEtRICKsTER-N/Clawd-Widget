@@ -66,7 +66,8 @@ export class ChipSound {
         this.tone('square', 400, t, 0.12, 0.08 * v, 1200)
         break
       case 'soft':
-        // the slow breathing glow stays silent
+      case 'trail':
+        // the slow breathing glow and Bug Jump's bug trails stay silent
         break
     }
   }

@@ -69,7 +69,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 - [x] **4.4 Achievements and cosmetics** (M)
   Achievements like first play, 100 clicks, every animation played, or playing at 3 AM show a pixel toast. They unlock hats and "deal with it" shades, drawn as glyphs anchored to Clawd's head. This needs a head anchor per pose: `front()` already knows it, and the traced guitar frames need one each.
 
-- [ ] **4.5 Bug Jump mini-game** (L)
+- [x] **4.5 Bug Jump mini-game** (L)
   The 62×10 energy grid becomes the playfield. Clawd jumps over bugs, collects ✓s, jumps and landings fire pulses, and the label becomes the score display. High score saved. Opens from a 🎮 toolbar button (and the Konami code).
 
 ## Phase 5: For devs and creators

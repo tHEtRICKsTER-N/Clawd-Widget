@@ -18,6 +18,7 @@ import { darkMix, introGlow } from '../engine/timeline'
 import type { AnimationDef, AnimId, Pose } from '../engine/types'
 import type { LifeEvent } from './achievements'
 import { ensureFont } from './fonts'
+import { BugJump } from './game'
 import { ClawdLife, type SpriteToClient } from './life'
 import { ChipSound } from './sound'
 import { darken, fontFamily, fontWeight, lighten, mix, rgba, rgbCsv, type Settings } from './settings'
@@ -36,8 +37,8 @@ export const BUTTON_CSS = `
   font-style:normal;text-transform:none;text-shadow:none;letter-spacing:-0.01em;margin:0;padding:0;transition:opacity .25s}
 .cw-toast{position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap;pointer-events:none;line-height:1.3;margin:0;padding:0;
   font-family:'Clawd Press Start 2P',monospace;font-weight:400;font-style:normal;letter-spacing:0;text-transform:none;opacity:0;transition:opacity .25s}
-.cw-btn.toasting .cw-label{opacity:0}
-.cw-btn.toasting .cw-toast{opacity:1}
+.cw-btn.toasting .cw-label,.cw-btn.gaming .cw-label{opacity:0}
+.cw-btn.toasting .cw-toast,.cw-btn.gaming .cw-toast{opacity:1}
 @media (prefers-reduced-motion:reduce){.cw-label,.cw-toast{transition:none}}
 `
 
@@ -54,8 +55,10 @@ export interface RendererOptions {
   onEnd?: () => void
   /** called whenever a play starts (with the resolved animation id) */
   onPlay?: (id: AnimId) => void
-  /** plays, clicks, pokes, drags and wake-ups, for achievements */
+  /** plays, clicks, pokes, drags, wake-ups and Bug Jump scores, for achievements */
   onEvent?: (e: LifeEvent) => void
+  /** the saved Bug Jump high score */
+  bestScore?: () => number
 }
 
 /**
@@ -133,6 +136,11 @@ export class ClawdButton {
   private heard: { kind: string; seed: number; at: number }[] = []
   /** how much of the Konami code has been typed */
   private konamiAt = 0
+  /** Bug Jump, while it's on */
+  private game: BugJump | null = null
+  private gameShown = { label: '', over: false }
+  /** start Bug Jump once the current play ends (after the secret) */
+  private gameAfterPlay = false
   /** the system asks for reduced motion: calmer pulses, no tap flash, calmer eyes */
   private motion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
   private calm = !!this.motion?.matches
@@ -201,6 +209,8 @@ export class ClawdButton {
    */
   play(id?: AnimId | 'random', opts: { loop?: boolean } = {}) {
     this.wake()
+    if (this.game) this.stopGame()
+    this.gameAfterPlay = false
     this.playLoop = opts.loop ?? null
     const want = id ?? this.s.animation
     const resolved: AnimId = want === 'random' ? pickRandom(this.lastAnimId) : want
@@ -221,9 +231,41 @@ export class ClawdButton {
   click(x: number, y: number) {
     this.wake()
     this.unlockSound()
+    if (this.game) {
+      this.game.jump()
+      return
+    }
     this.opts.onEvent?.({ type: 'click' })
     if (this.s.pokes && this.mode === 'idle' && !this.controlled && this.life.hits(x, y)) this.opts.onEvent?.({ type: 'poke', combo: this.life.poke() })
     else this.play()
+  }
+
+  /** Start Bug Jump (see game.ts): click / Space / ↑ jumps, Escape quits. */
+  startGame() {
+    this.wake()
+    this.unlockSound()
+    this.mode = 'idle'
+    this.linger = null
+    this.gameAfterPlay = false
+    this.life.reset()
+    this.game = new BugJump(this.opts.bestScore?.() ?? 0)
+    this.gameShown = { label: '', over: false }
+    this.el.classList.add('gaming')
+    // keys go to the focused button
+    this.el.focus({ preventScroll: true })
+  }
+
+  stopGame() {
+    if (!this.game) return
+    this.game = null
+    this.el.classList.remove('gaming')
+    this.wake()
+    // achievement toasts waited for the game to end
+    if (this.toasts.length && !this.toastTimer) this.nextToast()
+  }
+
+  get gaming() {
+    return !!this.game
   }
 
   /** A short message in the label's place for a few seconds (e.g. an unlocked achievement); queued. */
@@ -233,6 +275,11 @@ export class ClawdButton {
   }
 
   private nextToast() {
+    // not over the score while a game is on: they wait (see stopGame)
+    if (this.game) {
+      this.toastTimer = 0
+      return
+    }
     const text = this.toasts.shift()
     if (text === undefined) {
       this.el.classList.remove('toasting')
@@ -327,6 +374,19 @@ export class ClawdButton {
 
   private onKey = (e: KeyboardEvent) => {
     const k = e.key.toLowerCase()
+    if (this.game) {
+      if (k === ' ' || k === 'arrowup' || k === 'w') {
+        e.preventDefault()
+        this.unlockSound()
+        this.game.jump()
+        return
+      }
+      if (k === 'escape') {
+        e.preventDefault()
+        this.stopGame()
+        return
+      }
+    }
     // Shift (for capital B A) and friends don't count as keys of the code
     if (k === 'shift' || k === 'control' || k === 'alt' || k === 'meta' || k === 'capslock') return
     if (k === KONAMI[this.konamiAt]) this.konamiAt++
@@ -337,7 +397,9 @@ export class ClawdButton {
     if (this.konamiAt === KONAMI.length) {
       this.konamiAt = 0
       this.unlockSound()
-      this.play('konami')
+      // the secret, then the game
+      this.play('konami', { loop: false })
+      this.gameAfterPlay = true
     }
   }
 
@@ -515,6 +577,8 @@ export class ClawdButton {
     let pose: Pose
     let rest = 0
 
+    if (this.game && !this.controlled) return this.stepGame(this.game, dt)
+
     if (this.controlled) {
       anim = ANIMATIONS[this.controlled.anim]
       t = this.controlled.t
@@ -526,6 +590,7 @@ export class ClawdButton {
         this.mode = 'idle'
         this.idleT = 0
         this.opts.onEnd?.()
+        if (this.gameAfterPlay) this.startGame()
       } else {
         anim = this.anim
         t = this.playT
@@ -582,6 +647,30 @@ export class ClawdButton {
     this.drawSprite(pose)
     this.drawFx(particles)
     return rest
+  }
+
+  /** A frame of Bug Jump: its pose, bugs and ✓s, pulses and the score in the label's place. */
+  private stepGame(game: BugJump, dt: number): number {
+    const f = game.step(dt * this.speed)
+    if (f.label !== this.gameShown.label) {
+      this.gameShown.label = f.label
+      this.toastEl.textContent = f.label
+      this.fitToast()
+      void ensureFont('press').then(() => this.fitToast())
+    }
+    if (game.over && !this.gameShown.over) this.opts.onEvent?.({ type: 'game', score: game.score })
+    this.gameShown.over = game.over
+    if (game.done) this.stopGame()
+    const pulses = this.calm ? calmPulses(f.pulses) : f.pulses
+    this.playSounds(pulses, game.t, dt * this.speed)
+    this.stateCache = { mode: this.mode, anim: null, t: game.t, pose: f.pose.name ?? '' }
+    this.drawn = null
+    this.dark.style.opacity = '0'
+    this.intro.style.opacity = '0'
+    this.drawGrid(pulses, game.t)
+    this.drawSprite(f.pose)
+    this.drawFx(f.particles)
+    return 0
   }
 
   private chip(): ChipSound {

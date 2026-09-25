@@ -39,6 +39,8 @@ const ICONS = {
     '<svg viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 5h6M12.5 5h1M2.5 11h1.5M7.5 11h6"/><circle cx="10.5" cy="5" r="1.7"/><circle cx="5.7" cy="11" r="1.7"/></g></svg>',
   close:
     '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.3 4.3l7.4 7.4M11.7 4.3l-7.4 7.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  game:
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M4.6 4.2h6.8a3.6 3.6 0 0 1 3.6 3.6v1a2.8 2.8 0 0 1-5 1.7l-.6-.8H6.6l-.6.8a2.8 2.8 0 0 1-5-1.7v-1a3.6 3.6 0 0 1 3.6-3.6z"/><path d="M4.6 6.2v2.6M3.3 7.5h2.6" stroke="#12101a" stroke-width="1.2" stroke-linecap="round"/><circle cx="10.9" cy="6.7" r=".85" fill="#12101a"/><circle cx="12.3" cy="8.3" r=".85" fill="#12101a"/></svg>',
   soundOn:
     '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2.5 6h2.3L8.5 3v10L4.8 10H2.5z"/><path d="M10.7 5.6a3.4 3.4 0 010 4.8M12.6 3.9a5.8 5.8 0 010 8.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
   soundOff:
@@ -140,6 +142,10 @@ export class FloatingWidget {
       this.button.unlockSound()
       this.button.play('random')
     })
+    tool(ICONS.game, 'Bug Jump (click or Space to jump, Esc to quit)', () => {
+      if (this.button.gaming) this.button.stopGame()
+      else this.button.startGame()
+    })
     if (opts.onPatch) {
       this.soundBtn = tool(ICONS.soundOff, 'Sound', () => {
         const next = { ...this._settings, sound: !this._settings.sound }
@@ -164,9 +170,15 @@ export class FloatingWidget {
         this.button.toast(`🏆 ${a.name}${reward ? ` +${reward.name}` : ''}`)
       })
     }
-    this.button = new ClawdButton(slot, this._settings, { onPlay: opts.onPlay, onEvent: (e) => this.tracker?.event(e) })
+    this.button = new ClawdButton(slot, this._settings, {
+      onPlay: opts.onPlay,
+      onEvent: (e) => this.tracker?.event(e),
+      bestScore: () => this.tracker?.stats.bugJumpBest ?? 0,
+    })
     this.bindPointer(slot)
     this.button.el.addEventListener('keydown', (e) => {
+      // in a game, Space jumps (the button handles it)
+      if (this.button.gaming) return
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         this.button.unlockSound()

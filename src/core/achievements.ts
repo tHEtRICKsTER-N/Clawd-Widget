@@ -24,6 +24,8 @@ export interface Stats {
   wakes: number
   /** played between 3 and 4 AM */
   night: boolean
+  /** Bug Jump high score */
+  bugJumpBest: number
   /** achievement id → when it was unlocked (ms since 1970) */
   unlocked: Record<string, number>
 }
@@ -35,6 +37,7 @@ export type LifeEvent =
   | { type: 'poke'; combo: number }
   | { type: 'drag' }
   | { type: 'wake' }
+  | { type: 'game'; score: number }
 
 export interface Achievement {
   id: string
@@ -63,9 +66,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'cheater', name: 'Cheater!', hint: 'A famous cheat code, typed on the widget', reward: 'headphones', done: (s) => (s.plays.konami ?? 0) > 0 },
   { id: 'flyer', name: 'Frequent flyer', hint: 'Drag the widget around 25 times', done: (s) => s.drags >= 25 },
   { id: 'wake-up', name: 'Rise and shine', hint: 'Wake Clawd from a nap', done: (s) => s.wakes >= 1 },
+  { id: 'exterminator', name: 'Exterminator', hint: 'Score 20 in Bug Jump (🎮 in the toolbar)', done: (s) => s.bugJumpBest >= 20 },
 ]
 
-export const emptyStats = (): Stats => ({ plays: {}, clicks: 0, pokes: 0, bestCombo: 0, drags: 0, wakes: 0, night: false, unlocked: {} })
+export const emptyStats = (): Stats => ({ plays: {}, clicks: 0, pokes: 0, bestCombo: 0, drags: 0, wakes: 0, night: false, bugJumpBest: 0, unlocked: {} })
 
 /** Stats from storage (anything missing or broken becomes zero). */
 export function normalizeStats(raw: unknown): Stats {
@@ -84,11 +88,12 @@ export function normalizeStats(raw: unknown): Stats {
     drags: n(s.drags),
     wakes: n(s.wakes),
     night: s.night === true,
+    bugJumpBest: n(s.bugJumpBest),
     unlocked: counts(s.unlocked),
   }
 }
 
-/** a + b: counts add up, the best combo is the higher one, unlocks keep their earliest time. */
+/** a + b: counts add up, best combo and high score are the higher one, unlocks keep their earliest time. */
 export function mergeStats(a: Stats, b: Stats): Stats {
   const plays = { ...a.plays }
   for (const [k, v] of Object.entries(b.plays)) plays[k] = (plays[k] ?? 0) + v
@@ -102,6 +107,7 @@ export function mergeStats(a: Stats, b: Stats): Stats {
     drags: a.drags + b.drags,
     wakes: a.wakes + b.wakes,
     night: a.night || b.night,
+    bugJumpBest: Math.max(a.bugJumpBest, b.bugJumpBest),
     unlocked,
   }
 }
@@ -117,6 +123,7 @@ export function record(d: Stats, e: LifeEvent) {
     d.bestCombo = Math.max(d.bestCombo, e.combo)
   } else if (e.type === 'drag') d.drags++
   else if (e.type === 'wake') d.wakes++
+  else if (e.type === 'game') d.bugJumpBest = Math.max(d.bugJumpBest, e.score)
 }
 
 const SAVE_AFTER = 2000

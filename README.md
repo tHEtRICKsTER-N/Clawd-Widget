@@ -25,7 +25,8 @@ npm run dev          # web playground at http://localhost:5178
 
 - **Click to play once**, then it rests in an idle pose (blinks, glances around). Choose **Loop** to keep it going after a click.
 - **Idle antics:** every few minutes Clawd stretches, yawns, scratches its head or wanders across the button and back. Left alone for five minutes, it nods off (Zzz) and wakes with a start when the pointer comes near. Turn it off with *Idle antics*.
-- **Achievements and a wardrobe:** eight goals pop a pixel toast when you reach them: first jam, a 10-poke combo, 100 clicks, every animation, playing at 3 AM, a certain cheat code, frequent flying, and waking Clawd up. Six of them unlock something for Clawd to wear: a party hat, a propeller cap, a crown, deal-with-it shades, a nightcap or headphones. The item sits on its head in every pose, guitar solos included. Pick one under *Achievements → Wear*.
+- **Achievements and a wardrobe:** nine goals pop a pixel toast when you reach them: first jam, a 10-poke combo, 100 clicks, every animation, playing at 3 AM, a certain cheat code, frequent flying, waking Clawd up, and scoring 20 in Bug Jump. Six of them unlock something for Clawd to wear: a party hat, a propeller cap, a crown, deal-with-it shades, a nightcap or headphones. The item sits on its head in every pose, guitar solos included. Pick one under *Achievements → Wear*.
+- **Bug Jump 🎮:** a tiny runner played right on the button. Bugs crawl in along the grid, leaving glowing cells behind them, and Clawd jumps over them. Catch the ✓s mid-jump for extra points. Click, <kbd>Space</kbd> or <kbd>↑</kbd> jumps, and <kbd>Esc</kbd> quits. The score takes the label's place and your high score is saved. It opens from 🎮 in the hover toolbar.
 - **A secret:** click the widget, then type a certain famous cheat code. Gamers will know it. It only listens while the widget has focus, never to the page you're on.
 - **Poke Clawd:** a click on Clawd itself gets a squish and a heart instead of a play (the rest of the button still plays). Poke fast for a combo ("x5!") with bigger pulses on every hit, and a little celebration every 10. Turn it off with *Poke Clawd*.
 - **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
@@ -35,7 +36,7 @@ npm run dev          # web playground at http://localhost:5178
 - **Chiptune sound (off by default):** square-wave and noise blips made on the fly with Web Audio (no audio files), one for every pulse of the grid: strums pluck, power chords crunch, landings thump, twinkles blip. Turn it on in *Sound* (with a volume slider), from the speaker in the hover toolbar, or from the desktop right-click menu.
 - **Reduced motion:** when your system asks for reduced motion, the grid flashes at most 3 times a second (a burst of rapid strums becomes one pulse) and less brightly, the tap flash is skipped, and Clawd's eyes change direction at most every 0.6 s. Nothing changes for everyone else.
 - **Light at rest:** while Clawd is resting, the widget only draws when something changes (a blink, the pointer moving, an antic), about once a second instead of 60 times. Dozing runs at a relaxed 12 fps.
-- **Floating widget:** drag it anywhere. Clawd dangles while you carry it and lands with a thud that shakes the grid (*Dangle when dragged*). It docks to the nearest corner and snaps to edges. The hover toolbar has play, random, sound on/off, customize and hide.
+- **Floating widget:** drag it anywhere. Clawd dangles while you carry it and lands with a thud that shakes the grid (*Dangle when dragged*). It docks to the nearest corner and snaps to edges. The hover toolbar has play, random, Bug Jump, sound on/off, customize and hide.
 - **Extension extras:** settings sync across your browsers (`chrome.storage.sync`) and update every open tab live. Hide it per site from the toolbar or popup. Shortcuts: `Alt+Shift+K` show/hide, `Alt+Shift+P` play random. The widget lives in a shadow root and its fonts are embedded, so page CSS and CSP can't break it.
 - **Desktop extras:** frameless, transparent and always on top. Clicks pass through the transparent margin. Right-click or the tray icon for animation, size, sound, always-on-top, start with Windows, control from scripts, customize and quit.
 
@@ -56,6 +57,7 @@ src/core/
   renderer.ts          ClawdButton: framework-free canvas renderer (theme, font, play/loop/idle); naps between changes at rest
   sound.ts             ChipSound: Web Audio chiptune synth, one sound per pulse kind
   achievements.ts      stats, achievements and the tracker that saves them (debounced, merge-safe across tabs)
+  game.ts              Bug Jump: the mini-game played on the button
   life.ts              ClawdLife: what Clawd does between plays (watching, drag and drop, pokes, antics, dozing)
   widget.ts            FloatingWidget: draggable/dockable wrapper (page or desktop-window mode)
   settings.ts          Settings model, presets, fonts, colour utils

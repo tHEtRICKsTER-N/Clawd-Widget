@@ -4,6 +4,40 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 4.5 Bug Jump mini-game
+
+A tiny runner played on the button (`src/core/game.ts`, `BugJump`). It opens from **🎮 in the hover toolbar**, and the secret code now plays its animation once and then opens the game (the plan's "and the Konami code").
+- Bugs (5×3 px, red) scuttle in from the button's left edge, through the label area, toward Clawd, who runs in place with walking legs and eyes on what's coming.
+- Click, Space, ↑ or W jumps; Escape quits.
+- Clearing a bug scores 1. A ✓ floating high up scores 3 when caught mid-jump.
+- Bugs speed up from 60 to 160 px/s as the score grows, and they never come closer together than 0.95 s, so there's always room to land and jump again.
+- A hit ends the game with "GAME OVER n · HI m". Jump to retry (after 0.6 s, so the fatal click doesn't restart it); it closes itself after 8 s.
+
+**The grid is the playfield.** Each bug lights the cell under it every 0.12 s as it crawls, through a new `trail` pulse kind: a faint single cell, silent, and exempt from the reduced-motion thinning like twinkles. Jumps (`strum`), landings (`land`), catches (`twinkle` at the ✓) and the game over (`power`) are pulses too, so with sound on the game gets chiptune effects for free. Adding the kind changes no existing animation (`check:anims`: 30 × `same`).
+
+**Label.** The score takes the label's place in the pixel font, reusing the toast line (`.gaming`). Achievement toasts wait until the game ends so they don't cover the score.
+
+**Feel.** The jump peaks 9 px up, so Clawd's head stays inside the button: gravity 180 px/s², take-off 57 px/s, 0.63 s in the air. Arms go `up` rather than `high` for the same reason. The hitbox is 2 px narrower than the body on each side, and a bug only hits if Clawd's feet are under 2 px up. The first version (apex 11 px, stricter hitbox) was too tight: a scripted player jumping with a human-like 0.12 s lead died at the first bug.
+
+**Stats.** `bugJumpBest` (merged by max) is kept with the achievement stats. The game starts from it (`RendererOptions.bestScore`), and a game over reports the score as a `game` event. A new achievement, *Exterminator*, is for scoring 20. It has no wardrobe item. The settings' Achievements card shows the high score.
+
+Verified:
+- Game logic (Node, seeded RNG):
+  - An idle player loses to the first bug at 4.8 s. Retry is ignored for 0.6 s, then restarts from zero.
+  - A scripted player that jumps 0.12 s ahead of each bug survives 60 s on 20 of 20 seeds, and 90 s at top speed (score 82).
+  - Jumping for ✓s catches them (12 over 10 games).
+  - The saved best carries in, the give-up timer ends it, and jumps, landings and trails all fire pulses.
+- Chromium, a `FloatingWidget` with stats:
+  - 🎮 starts the game with the button focused.
+  - Played with real Space key presses, it reached 21 at 144 px/s. Losing shows GAME OVER and saves `bugJumpBest: 21`.
+  - *Exterminator* waited during the game and toasted as soon as Escape closed it.
+  - A click in the game jumps (no play). The secret code plays `konami`, and the game is on 3.6 s later.
+  - Screenshots: the intro line, bugs with their glowing trails, a ✓ up high, the score, game over.
+- Desktop (Electron under Xvfb): 🎮 in the window toolbar starts it, Space jumps, and after scoring 2 and losing, `bugJumpBest: 2` is in the data file.
+- Regressions: the renderer pixel check is identical, and the nap, poke, achievements and Konami suites pass. The achievements suite needed Escape after the secret code, because the code now opens the game and a game's clicks are jumps; with that, two tabs × 6 clicks gave +12 again. `tsc`, `check:anims`, `build:ext` and `build:desktop` pass.
+
+**Phase 4 is done.**
+
 ## 2026-09-25 · 4.4 Achievements and cosmetics
 
 **Achievements** (`src/core/achievements.ts`). Each shows a toast when unlocked:
