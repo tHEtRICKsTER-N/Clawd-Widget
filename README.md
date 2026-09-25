@@ -39,6 +39,7 @@ src/engine/            pure, time-driven animation engine (no DOM)
   clawd.ts             front-facing pose builder (eyes/arms/legs/laptop)
   sprites.ts           traced guitar-playing frames
   animations/*.ts      one file per animation + registry, idle pose, random pick
+  frame.ts             what a play shows at time t (loop seams, fade-out after a play)
 src/core/
   renderer.ts          ClawdButton: framework-free canvas renderer (theme, font, play/loop/idle)
   widget.ts            FloatingWidget: draggable/dockable wrapper (page or desktop-window mode)
@@ -53,7 +54,7 @@ dev/                   harness pages to test the built content script and the po
 
 ### Adding an animation
 
-Create `src/engine/animations/<name>.ts` exporting an `AnimationDef` (`duration`, and `pose(t)`, `pulses(t)` and `particles(t)` as pure functions of time). Build poses with `front({...})` and pulses with `scheduled(t, [[time, 'land'], ...])`. Then register it in `animations/index.ts` and add its id to `AnimId`. Every host picks it up automatically. Preview it with `http://localhost:5178/?sheet=<name>`.
+Create `src/engine/animations/<name>.ts` exporting an `AnimationDef` (`duration`, and `pose(t)`, `pulses(t)` and `particles(t)` as pure functions of time). Build poses with `front({...})` and pulses with `scheduled(t, [[time, 'land'], ...])`. Then register it in `animations/index.ts` and add its id to `AnimId`. Every host picks it up automatically. Preview it with `http://localhost:5178/?sheet=<name>`. Once it looks right, run `npm run check:anims -- --update` to add it to the animation snapshot.
 
 ## Desktop widget notes
 
@@ -65,6 +66,7 @@ Create `src/engine/animations/<name>.ts` exporting an `AnimationDef` (`duration`
 
 ## Dev tools
 
+- `npm run check:anims`: checks that every animation, and the idle pose, still produces exactly the same frames (sprite, particles, every grid cell, flash overlays; sampled at 60 fps through a play, two loops and the fade-out). It reports the first time that differs. Only run it with `--update` when you add an animation or mean to change one. The snapshot is `scripts/anims.snapshot.json`.
 - **Reference compare** tab: speed 25 / 50 / 100 / 200 % (keys 1–4), play/pause (space), frame step (←/→), scrubber, and the reference clip stacked, overlaid or difference-blended. `?t=7.3` opens paused at that time.
 - `?sheet=<animation>&step=0.15`: contact sheet of one animation.
 - `dev/ext-harness.html`: loads the built `content.js` into a deliberately hostile page with a stubbed `chrome.*`.

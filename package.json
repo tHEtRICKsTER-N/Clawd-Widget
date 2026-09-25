@@ -11,7 +11,8 @@
     "build:desktop": "vite build --config desktop/vite.config.ts",
     "desktop": "npm run build:desktop && electron .",
     "dist:desktop": "npm run build:desktop && electron-builder --win portable nsis",
-    "icons": "python scripts/make-icons.py"
+    "icons": "python scripts/make-icons.py",
+    "check:anims": "node scripts/check-anims.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

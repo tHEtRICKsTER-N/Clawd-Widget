@@ -7,7 +7,8 @@
  *   grid canvas → sprite canvas → particle canvas → label
  */
 
-import { ANIMATIONS, idlePose, loopTime, pickRandom } from '../engine/animations'
+import { ANIMATIONS, idlePose, pickRandom } from '../engine/animations'
+import { lingerFrame, playFrame } from '../engine/frame'
 import { CELL, CELL_INNER, COLS, REF_H, REF_W, ROWS, computeField, createField } from '../engine/grid'
 import type { Particle } from '../engine/particle'
 import type { Pulse } from '../engine/pulses'
@@ -34,7 +35,6 @@ const PRESS_COLOR = '#1c1e1b'
 const LABEL_LEFT = 22
 const LABEL_RIGHT = 540
 const LABEL_SIZE = 30.5
-const LINGER = 1.3
 
 export interface RendererOptions {
   /** called when a single play finishes */
@@ -291,27 +291,21 @@ export class ClawdButton {
     }
 
     if (anim) {
-      const tt = loopTime(anim, t)
-      fieldT = tt
-      pose = anim.pose(tt)
-      pulses = anim.pulses(tt)
-      particles = anim.particles(tt)
-      // carry pulses that are still fading across a loop seam (shifted onto this iteration's clock)
-      const span = anim.duration - anim.loopFrom
-      if (!anim.native && t >= anim.duration && tt - anim.loopFrom < LINGER) {
-        const late = anim.pulses(tt + span).filter((p) => p.t0 <= anim!.duration && p.t0 >= anim!.loopFrom)
-        pulses = pulses.concat(late.map((p) => ({ ...p, t0: p.t0 - span })))
-      }
+      const f = playFrame(anim, t)
+      pose = f.pose
+      pulses = f.pulses
+      particles = f.particles
+      fieldT = f.fieldT
     } else {
       this.idleT += dt * this.speed
       pose = idlePose(this.idleT, this.s.idleBlink)
       if (this.linger) {
         this.linger.t += dt * this.speed
-        const L = this.linger
-        if (L.t > LINGER) this.linger = null
+        const f = lingerFrame(this.linger.anim, this.linger.end, this.linger.t)
+        if (!f) this.linger = null
         else {
-          fieldT = L.end + L.t
-          pulses = L.anim.pulses(fieldT).filter((p) => p.t0 <= L.end)
+          pulses = f.pulses
+          fieldT = f.fieldT
         }
       }
     }
