@@ -37,7 +37,11 @@
 .sp-btn:disabled { opacity: .5; cursor: default; }
 .sp-btn.primary { background: var(--sp-accent); border-color: var(--sp-accent); color: #fff; }
 .sp-btn.ghost { background: transparent; }
-.sp-hint { color: var(--sp-muted); font-size: 12px; }
+.sp-hint { color: var(--sp-muted); font-size: 12px; margin: 0; }
+.sp-range { display: inline-flex; gap: 8px; align-items: center; color: var(--sp-text); }
+.sp-range input { accent-color: var(--sp-accent); width: 140px; margin: 0; }
+.sp-range input:disabled { opacity: 0.4; }
+.sp-range code { color: var(--sp-muted); font-size: 12px; min-width: 3.2em; }
 .sp-seg { display: inline-flex; border: 1px solid var(--sp-line); border-radius: 8px; overflow: hidden; }
 .sp-seg button { background: #1f1e25; color: var(--sp-muted); border: 0; border-right: 1px solid var(--sp-line); padding: 6px 11px; font: inherit; cursor: pointer; }
 .sp-seg button:last-child { border-right: 0; }

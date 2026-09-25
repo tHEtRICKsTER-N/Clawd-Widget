@@ -36,6 +36,10 @@ const ICONS = {
     '<svg viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 5h6M12.5 5h1M2.5 11h1.5M7.5 11h6"/><circle cx="10.5" cy="5" r="1.7"/><circle cx="5.7" cy="11" r="1.7"/></g></svg>',
   close:
     '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.3 4.3l7.4 7.4M11.7 4.3l-7.4 7.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  soundOn:
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2.5 6h2.3L8.5 3v10L4.8 10H2.5z"/><path d="M10.7 5.6a3.4 3.4 0 010 4.8M12.6 3.9a5.8 5.8 0 010 8.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  soundOff:
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2.5 6h2.3L8.5 3v10L4.8 10H2.5z"/><path d="M10.6 6.1l3.8 3.8M14.4 6.1l-3.8 3.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
 }
 
 const WIDGET_CSS = `
@@ -76,6 +80,8 @@ export interface WidgetOptions {
   /** page mode: attach to this element instead of document.documentElement */
   container?: HTMLElement
   onPlay?: (id: AnimId) => void
+  /** save a settings change made from the widget itself (the sound button); without it there's no sound button */
+  onPatch?: (patch: Partial<Settings>) => void
 }
 
 export class FloatingWidget {
@@ -85,11 +91,12 @@ export class FloatingWidget {
   private wrap: HTMLDivElement
   private opts: WidgetOptions
   private dock: Dock
-  private settings: Settings
+  private _settings: Settings
+  private soundBtn: HTMLButtonElement | null = null
 
   constructor(opts: WidgetOptions) {
     this.opts = opts
-    this.settings = opts.settings
+    this._settings = opts.settings
     this.dock = { ...(opts.dock ?? DEFAULT_DOCK) }
 
     const host = document.createElement(opts.mode === 'page' ? 'clawd-widget' : 'div')
@@ -117,9 +124,25 @@ export class FloatingWidget {
       })
       b.addEventListener('pointerdown', (e) => e.stopPropagation())
       bar.appendChild(b)
+      return b
     }
-    tool(ICONS.play, 'Play', () => this.button.play())
-    tool(ICONS.shuffle, 'Play a random animation', () => this.button.play('random'))
+    tool(ICONS.play, 'Play', () => {
+      this.button.unlockSound()
+      this.button.play()
+    })
+    tool(ICONS.shuffle, 'Play a random animation', () => {
+      this.button.unlockSound()
+      this.button.play('random')
+    })
+    if (opts.onPatch) {
+      this.soundBtn = tool(ICONS.soundOff, 'Sound', () => {
+        const next = { ...this._settings, sound: !this._settings.sound }
+        // apply at once (the gesture lets audio start); the host saves it and echoes it back
+        this.setSettings(next)
+        this.button.unlockSound()
+        opts.onPatch!({ sound: next.sound })
+      })
+    }
     if (opts.onOpenSettings) tool(ICONS.settings, 'Customize', opts.onOpenSettings)
     if (opts.onClose) tool(ICONS.close, opts.closeLabel ?? 'Hide', opts.onClose)
     wrap.appendChild(bar)
@@ -129,11 +152,12 @@ export class FloatingWidget {
     wrap.appendChild(slot)
     this.shadow.appendChild(wrap)
 
-    this.button = new ClawdButton(slot, this.settings, { onPlay: opts.onPlay })
+    this.button = new ClawdButton(slot, this._settings, { onPlay: opts.onPlay })
     this.bindPointer(slot)
     this.button.el.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
+        this.button.unlockSound()
         this.button.play()
       }
     })
@@ -157,8 +181,12 @@ export class FloatingWidget {
     this.applySettings()
   }
 
+  get settings(): Settings {
+    return this._settings
+  }
+
   setSettings(s: Settings) {
-    this.settings = s
+    this._settings = s
     this.button.setSettings(s)
     this.applySettings()
     if (this.opts.mode === 'page') this.applyDock()
@@ -185,11 +213,19 @@ export class FloatingWidget {
   }
 
   private applySettings() {
-    this.wrap.classList.toggle('nobar', !this.settings.showToolbar)
+    this.wrap.classList.toggle('nobar', !this._settings.showToolbar)
+    const b = this.soundBtn
+    if (b) {
+      const on = this._settings.sound
+      b.innerHTML = on ? ICONS.soundOn : ICONS.soundOff
+      b.title = on ? 'Sound is on (click to mute)' : 'Sound is off (click for chiptune sounds)'
+      b.setAttribute('aria-label', 'Sound effects')
+      b.setAttribute('aria-pressed', String(on))
+    }
   }
 
   private get size() {
-    const w = this.settings.size
+    const w = this._settings.size
     return { w, h: Math.round((w * 104) / 676) }
   }
 

@@ -83,6 +83,11 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
       if (v) void store.save(v)
     }, 350)
   }
+  // sound needs a click to start in browsers: every play button here counts
+  const playPreview = (id?: Parameters<ClawdButton['play']>[0]) => {
+    btn.current?.unlockSound()
+    btn.current?.play(id)
+  }
   const setColor = (key: keyof Colors, v: string) => update({ colors: { ...s.colors, [key]: v } })
   const presetId = PRESETS.find((p) => (Object.keys(p.colors) as (keyof Colors)[]).every((k) => p.colors[k] === s.colors[k]))?.id
   const previewWidth = compact ? 340 : Math.min(466, s.size < 300 ? 340 : 466)
@@ -93,10 +98,10 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
       <section className="sp-preview">
         <UltracodeButton settings={s} width={previewWidth} onReady={(b) => (btn.current = b)} />
         <div className="sp-row">
-          <button className="sp-btn primary" onClick={() => btn.current?.play()}>
+          <button className="sp-btn primary" onClick={() => playPreview()}>
             ▶ Play
           </button>
-          <button className="sp-btn" onClick={() => btn.current?.play('random')}>
+          <button className="sp-btn" onClick={() => playPreview('random')}>
             🎲 Random
           </button>
           <span className="sp-hint">{s.pokes ? 'Click the button to play it, or poke Clawd' : 'Click the button to play it'}</span>
@@ -163,7 +168,7 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
               title={a.description}
               onClick={() => {
                 update({ animation: a.id })
-                btn.current?.play(a.id)
+                playPreview(a.id)
               }}
             >
               <span className="sp-anim-icon">{a.icon}</span>
@@ -177,7 +182,7 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             title="A different animation on every click"
             onClick={() => {
               update({ animation: 'random' })
-              btn.current?.play('random')
+              playPreview('random')
             }}
           >
             <span className="sp-anim-icon">🎲</span>
@@ -230,6 +235,37 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             Idle antics
           </label>
         </div>
+      </section>
+
+      <section className="sp-card">
+        <h3>Sound</h3>
+        <div className="sp-row">
+          <label className="sp-check">
+            <input
+              type="checkbox"
+              checked={s.sound}
+              onChange={(e) => {
+                update({ sound: e.target.checked })
+                if (e.target.checked) btn.current?.unlockSound(true)
+              }}
+            />
+            Sound effects
+          </label>
+          <label className="sp-range">
+            <span>Volume</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(s.volume * 100)}
+              disabled={!s.sound}
+              onChange={(e) => update({ volume: Number(e.target.value) / 100 })}
+            />
+            <code>{Math.round(s.volume * 100)}%</code>
+          </label>
+        </div>
+        <p className="sp-hint">Chiptune blips made on the fly, in time with every pulse of the grid. Off until you turn it on.</p>
       </section>
 
       <section className="sp-card">

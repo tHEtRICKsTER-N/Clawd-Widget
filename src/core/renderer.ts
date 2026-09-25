@@ -17,6 +17,7 @@ import { darkMix, introGlow } from '../engine/timeline'
 import type { AnimationDef, AnimId, Pose } from '../engine/types'
 import { ensureFont } from './fonts'
 import { ClawdLife, type SpriteToClient } from './life'
+import { ChipSound } from './sound'
 import { darken, fontFamily, fontWeight, lighten, mix, rgba, rgbCsv, type Settings } from './settings'
 
 export const BUTTON_CSS = `
@@ -106,6 +107,12 @@ export class ClawdButton {
   private stateCache: RendererState = { mode: 'idle', anim: null, t: 0, pose: '' }
   /** what Clawd does between plays (watching, dragging, pokes) */
   private life = new ClawdLife(() => this.spriteToClient())
+  /** chiptune sounds, made on first use while settings.sound is on */
+  private sound: ChipSound | null = null
+  /** seconds of frames so far (scaled by speed): when each pulse sounded is kept on this clock */
+  private soundClock = 0
+  /** pulses that have sounded recently, so each sounds once */
+  private heard: { kind: string; seed: number; at: number }[] = []
   /** the system asks for reduced motion: calmer pulses, no tap flash, calmer eyes */
   private motion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
   private calm = !!this.motion?.matches
@@ -186,8 +193,17 @@ export class ClawdButton {
    */
   click(x: number, y: number) {
     this.wake()
+    this.unlockSound()
     if (this.s.pokes && this.mode === 'idle' && !this.controlled && this.life.hits(x, y)) this.life.poke()
     else this.play()
+  }
+
+  /**
+   * Browsers only allow audio after a user gesture: hosts call this from their click
+   * handlers. `force` also when sound is being switched on by this very click.
+   */
+  unlockSound(force = false) {
+    if (force || this.s.sound) this.chip().unlock()
   }
 
   /** Show a status from an outside tool (see Status). */
@@ -250,6 +266,7 @@ export class ClawdButton {
   destroy() {
     cancelAnimationFrame(this.raf)
     clearTimeout(this.nap)
+    this.sound?.destroy()
     window.removeEventListener('pointermove', this.onPointerMove, { capture: true })
     this.motion?.removeEventListener('change', this.onMotion)
     this.el.remove()
@@ -394,6 +411,7 @@ export class ClawdButton {
     this.last = now
     this.maxDt = 0.1
     this.idleT += dt
+    this.soundClock += dt
     this.life.advance(dt)
     this.raf = requestAnimationFrame(this.tick)
   }
@@ -455,6 +473,7 @@ export class ClawdButton {
     // reduced motion: no tap flash, and pulses thinned to at most 3 a second and toned down
     const press = anim?.pressIntro && this.s.pressFlash && !this.calm ? t : Infinity
     if (this.calm && pulses.length) pulses = calmPulses(pulses)
+    this.playSounds(pulses, fieldT, dt * this.speed)
     const dm = darkMix(press)
     const ig = introGlow(press)
     this.stateCache = {
@@ -476,6 +495,33 @@ export class ClawdButton {
     this.drawSprite(pose)
     this.drawFx(particles)
     return rest
+  }
+
+  private chip(): ChipSound {
+    return (this.sound ??= new ChipSound())
+  }
+
+  /**
+   * A sound for every pulse as it starts. A pulse can be listed a few ms before or after
+   * its (jittered) start, so each one is remembered by kind, seed and start time on a
+   * steady clock and sounds once. Start times carry across loop seams and into the fade-out
+   * after a play, so nothing sounds twice; a pulse first seen long after it started (sound
+   * switched on mid-play) stays quiet.
+   */
+  private playSounds(pulses: Pulse[], fieldT: number, step: number) {
+    const now = (this.soundClock += step)
+    if (this.heard.length) this.heard = this.heard.filter((h) => now - h.at < 3)
+    if (!this.s.sound || this.controlled) return
+    for (const p of pulses) {
+      const age = fieldT - p.t0
+      if (age < 0 || age > 0.25) continue
+      const at = now - age
+      if (this.heard.some((h) => h.seed === p.seed && h.kind === p.kind && Math.abs(h.at - at) < 0.05)) continue
+      this.heard.push({ kind: p.kind, seed: p.seed, at })
+      const chip = this.chip()
+      chip.volume = this.s.volume
+      chip.pulse(p.kind, p.strength, p.seed)
+    }
   }
 
   /** Sprite px → client px for where the button is right now. */

@@ -34,6 +34,7 @@ function PageWidget() {
         onDock: (d) => localStorage.setItem(DOCK_KEY, JSON.stringify(d)),
         onClose: () => w?.host.style.setProperty('display', 'none'),
         closeLabel: 'Hide (reload to bring back)',
+        onPatch: (p) => w && void store.save({ ...w.settings, ...p }),
       })
       off = store.subscribe((v) => w?.setSettings(v))
     })

@@ -57,7 +57,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 
 ## Phase 4: For gamers
 
-- [ ] **4.1 Chiptune sound effects** (M), off by default
+- [x] **4.1 Chiptune sound effects** (M), off by default
   Square-wave and noise sounds synthesized with Web Audio, keyed to pulse types (`strum`, `power`, `land`, `twinkle`), so they stay in exact sync with the visuals. No audio files. Volume setting plus a mute button in the toolbar.
 
 - [ ] **4.2 Themes gamers and devs recognize** (S)

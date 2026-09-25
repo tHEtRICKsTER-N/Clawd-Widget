@@ -4,6 +4,35 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 4.1 Chiptune sound effects
+
+Off by default. Turn it on in the new *Sound* card (with a volume slider), from a speaker button in the hover toolbar, or from *Sound effects* in the desktop right-click menu.
+
+**Synth** (`src/core/sound.ts`, `ChipSound`): Web Audio oscillators and one shared buffer of seeded white noise, with no audio files. Each pulse kind has a sound, scaled by the pulse's strength:
+- `strum`: a square pluck, pitch from a pentatonic run picked by the pulse's seed, so a riff sounds the same every loop.
+- `sway`: a softer triangle note.
+- `power`: a square root plus fifth with a hiss.
+- `first`: a power chord plus an upward sweep.
+- `land`: a square thump sliding from 160 to 55 Hz, plus low noise.
+- `twinkle`: a tiny high blip.
+- `scan`: a quick upward sweep.
+- `soft`: silent. It's the slow breathing glow, and Thinking and dozing loop it for minutes.
+
+No AudioContext is made until the first sound with sound on.
+
+**Sync.** The renderer sounds each pulse as it starts, on the same frame it appears. At first I used "age under one frame step", but pulses carry a few ms of seeded jitter on their start while entering the list on their un-jittered time. So some were first seen already 19 ms old (skipped), and some before they had started. Measured on looping Hello Wave, 2 of its 5 pulses per loop never sounded. The renderer now remembers each sounded pulse (kind, seed and start time on its own steady clock, kept 3 s) and sounds it once, when its age turns ≥ 0. A pulse first seen more than 0.25 s after starting stays quiet, so switching sound on mid-play doesn't produce a burst. Under reduced motion, sounds follow the thinned pulses. No sounds in controlled mode (reference compare, contact sheets).
+
+**Autoplay.** Browsers start audio only after a gesture. Click paths call `unlockSound()`: clicking the button, the toolbar, the keyboard, and the settings' play and animation buttons, and the *Sound effects* checkbox itself. The desktop widget window sets `autoplayPolicy: 'no-user-gesture-required'`, so sounds also play when a script or Claude Code hook starts an animation. `FloatingWidget` gained `onPatch`, which hosts (playground, extension, desktop) use to save a change made from the toolbar.
+
+Verified:
+- Offline render (`OfflineAudioContext`, 1 s per kind): every kind but `soft` is audible (RMS 0.008–0.056 in the first 50 ms), lasts 26–176 ms, and is silent after 400 ms. `soft` is silent.
+- Chromium, playground widget, real click: sound off makes no `ChipSound` and plays nothing. With sound on, the AudioContext is `running` and Guitar Jam sounds all 14 pulses of a play once, no duplicates, each within one frame of its pulse. Looping Hello sounds 5 / 5 / 5 per loop. Under reduced motion Guitar Jam sounds 6. The toolbar speaker toggles the setting and `aria-pressed`, and saves through `onPatch`.
+- Desktop (Electron under Xvfb): with sound on, `--play jump` from a second process with no click plays its sounds with the context `running`.
+- Settings: the *Sound* card fits in the playground and the popup. Hint paragraphs lost their default margins.
+- Regressions: the renderer pixel check is identical, and the nap, poke, gaze and drag suites pass. `tsc`, `check:anims` (28 × `same`), `build:ext` and `build:desktop` pass.
+
+Not verified: listening. The container has no speakers, so the timbres have only been measured, not heard.
+
 ## 2026-09-25 · 3.2 Thinking animation plus hooks recipe
 
 **Thinking 💭** (`animations/think.ts`): Clawd raises a hand, and its eyes turn up toward a thought bubble that grows from its head: a dot, a bigger dot, then the cloud. Inside the bubble the dots cycle (·, ··, ···, empty) every 0.4 s. It glances straight up and blinks once per loop, and the grid breathes with a soft glow every 1.6 s at strength 0.24, so it stays calm when it loops for minutes (1 pulse a second at most). A 1 s intro grows the bubble; after that it loops a 3.2 s section. It is a regular animation, so it's in the picker, the Random pool and the desktop menus. `--state working` now loops it instead of Code Mode.

@@ -40,6 +40,10 @@ export interface Settings {
   pokes: boolean
   /** now and then Clawd stretches, yawns, scratches or wanders; left alone for a while, it dozes off */
   idleAntics: boolean
+  /** chiptune sound effects in sync with the grid pulses (off by default) */
+  sound: boolean
+  /** sound volume, 0–1 */
+  volume: number
   /** widget width in CSS px (height follows the 676×104 aspect) */
   size: number
   showToolbar: boolean
@@ -129,6 +133,8 @@ export const DEFAULT_SETTINGS: Settings = {
   dragReact: true,
   pokes: true,
   idleAntics: true,
+  sound: false,
+  volume: 0.5,
   size: 340,
   showToolbar: true,
   enabled: true,
@@ -156,6 +162,7 @@ export function normalize(raw: unknown): Settings {
     version: 1,
     text: typeof s.text === 'string' ? s.text.slice(0, 40) : DEFAULT_SETTINGS.text,
     size: Math.min(900, Math.max(160, Number(s.size) || DEFAULT_SETTINGS.size)),
+    volume: Number.isFinite(Number(s.volume)) ? Math.min(1, Math.max(0, Number(s.volume))) : DEFAULT_SETTINGS.volume,
     hiddenSites: Array.isArray(s.hiddenSites) ? s.hiddenSites.filter((x) => typeof x === 'string') : [],
     colors,
   }

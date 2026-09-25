@@ -210,7 +210,8 @@ function createWidget() {
     backgroundColor: '#00000000',
     title: 'Clawd Widget',
     icon: path.join(ASSETS, 'icon.png'),
-    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true },
+    // sounds can play when a script (e.g. a Claude Code hook) starts an animation, with no click
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true, autoplayPolicy: 'no-user-gesture-required' },
   })
   if (state.onTop) widget.setAlwaysOnTop(true, 'floating')
   widget.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false })
@@ -407,6 +408,7 @@ function menuTemplate() {
       submenu: ANIMS.map(([id, name]) => ({ label: name, type: 'radio', checked: current === id, click: () => patchSettings({ animation: id }) })),
     },
     { label: 'Loop after click', type: 'checkbox', checked: s.playMode === 'loop', click: (i) => patchSettings({ playMode: i.checked ? 'loop' : 'once' }) },
+    { label: 'Sound effects', type: 'checkbox', checked: !!s.sound, click: (i) => patchSettings({ sound: i.checked }) },
     {
       label: 'Size',
       submenu: SIZES.map(([name, v]) => ({ label: name, type: 'radio', checked: size() === v, click: () => patchSettings({ size: v }) })),

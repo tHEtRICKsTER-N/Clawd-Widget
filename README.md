@@ -29,11 +29,12 @@ npm run dev          # web playground at http://localhost:5178
 - **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
 - **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, Thinking, or **Random**, which picks a different one on every click.
 - **Customizable:** label text, font (Inter, Space Grotesk, JetBrains Mono, two pixel fonts, System, Serif, or any installed font), bold, and colors for the background, background glow, text, bot, energy cells, energy glow and particles. Includes 7 presets and 4 sizes.
+- **Chiptune sound (off by default):** square-wave and noise blips made on the fly with Web Audio (no audio files), one for every pulse of the grid: strums pluck, power chords crunch, landings thump, twinkles blip. Turn it on in *Sound* (with a volume slider), from the speaker in the hover toolbar, or from the desktop right-click menu.
 - **Reduced motion:** when your system asks for reduced motion, the grid flashes at most 3 times a second (a burst of rapid strums becomes one pulse) and less brightly, the tap flash is skipped, and Clawd's eyes change direction at most every 0.6 s. Nothing changes for everyone else.
 - **Light at rest:** while Clawd is resting, the widget only draws when something changes (a blink, the pointer moving, an antic), about once a second instead of 60 times. Dozing runs at a relaxed 12 fps.
-- **Floating widget:** drag it anywhere. Clawd dangles while you carry it and lands with a thud that shakes the grid (*Dangle when dragged*). It docks to the nearest corner and snaps to edges. The hover toolbar has play, random, customize and hide.
+- **Floating widget:** drag it anywhere. Clawd dangles while you carry it and lands with a thud that shakes the grid (*Dangle when dragged*). It docks to the nearest corner and snaps to edges. The hover toolbar has play, random, sound on/off, customize and hide.
 - **Extension extras:** settings sync across your browsers (`chrome.storage.sync`) and update every open tab live. Hide it per site from the toolbar or popup. Shortcuts: `Alt+Shift+K` show/hide, `Alt+Shift+P` play random. The widget lives in a shadow root and its fonts are embedded, so page CSS and CSP can't break it.
-- **Desktop extras:** frameless, transparent and always on top. Clicks pass through the transparent margin. Right-click or the tray icon for animation, size, always-on-top, start with Windows, customize and quit.
+- **Desktop extras:** frameless, transparent and always on top. Clicks pass through the transparent margin. Right-click or the tray icon for animation, size, sound, always-on-top, start with Windows, control from scripts, customize and quit.
 
 ## Code map
 
@@ -49,6 +50,7 @@ src/engine/            pure, time-driven animation engine (no DOM)
   antics.ts            idle antics (stretch, yawn, scratch, wander), dozing off and waking up
 src/core/
   renderer.ts          ClawdButton: framework-free canvas renderer (theme, font, play/loop/idle); naps between changes at rest
+  sound.ts             ChipSound: Web Audio chiptune synth, one sound per pulse kind
   life.ts              ClawdLife: what Clawd does between plays (watching, drag and drop, pokes, antics, dozing)
   widget.ts            FloatingWidget: draggable/dockable wrapper (page or desktop-window mode)
   settings.ts          Settings model, presets, fonts, colour utils

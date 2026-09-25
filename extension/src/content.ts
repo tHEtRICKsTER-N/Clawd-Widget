@@ -44,6 +44,9 @@ function sync() {
       if (settings) void store.save({ ...settings, hiddenSites: [...settings.hiddenSites, site] })
     },
     closeLabel: `Hide on ${site} (bring it back from the toolbar icon)`,
+    onPatch: (p) => {
+      if (settings) void store.save({ ...settings, ...p })
+    },
   })
 }
 

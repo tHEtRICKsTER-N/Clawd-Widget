@@ -20,6 +20,7 @@ async function main() {
     closeLabel: 'Hide (click the tray icon to bring it back)',
     onContextMenu: (x, y) => api.showMenu(x, y),
     windowDrag: { start: api.dragStart, end: api.dragEnd },
+    onPatch: (p) => void store.save({ ...w.settings, ...p }),
   })
 
   // The main process puts the toolbar strip above the button, or below it when the
