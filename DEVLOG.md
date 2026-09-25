@@ -4,6 +4,26 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · Getting it seen (not a PLAN item)
+
+With the plan done apart from the npm publish, a pass to make the repo inviting for newcomers:
+- **README:** it opens with the hero GIF, a two-column gallery of every animation (each in a different theme, to show those off too), a "Made for" list (gamers, Claude Code users, streamers, game and web devs), the theme collage, and how to get each part. The detailed docs follow unchanged. It notes that this is an unofficial fan project, since Clawd is the Claude Code mascot.
+- **`docs/media/`:** 11 GIFs made with the widget's own exporter (a 540 px guitar loop for the hero, and 340 px, 20 fps for the gallery: about 150–300 kB each), a collage of 12 themes, a Bug Jump screenshot (taken mid-leap with the unit tests' bot playing), and a 1280×640 social preview image to upload in the repo settings.
+- **Contributors:** `CONTRIBUTING.md` (setup, the ground rules from PLAN.md, and how to add an animation, a theme or a wearable), issue forms for bugs and ideas, and a PR checklist.
+- **CI:** `.github/workflows/ci.yml` runs `tsc`, `check:anims` and all four builds on every push and pull request, without downloading Electron.
+
+Verified:
+- Every GIF and still was looked over.
+- The CI steps pass on a fresh clone after `npm ci` with `ELECTRON_SKIP_BINARY_DOWNLOAD=1`. The first run on GitHub passed too.
+
+Not done, and needing the owner:
+- a license;
+- publishing to npm;
+- merging into `main` (visitors see `main`'s README);
+- GitHub Pages for a live demo;
+- releases with built installers;
+- the repo description, topics and social preview (repo settings).
+
 ## 2026-09-25 · 5.2 `<clawd-button>` web component (built, not yet published)
 
 `src/wc/clawd-button.ts` is a custom element that wraps `ClawdButton` in an open shadow root. It's set up from attributes: `text`, `theme` (a preset id or a share code), `anim`, `size`, `font`, `bold`, `loop`, `href`/`target`, `state`, `sound`, `volume`, `crt`, `wear`, `idle`, `eyes`, `blink`, `pokes` and `flash`. Attributes can change at any time.

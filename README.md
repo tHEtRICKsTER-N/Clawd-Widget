@@ -8,6 +8,8 @@
 
 Browser extension · Desktop widget · `<clawd-button>` web component · OBS overlay
 
+[![CI](https://github.com/tHEtRICKsTER-N/Clawd-Widget/actions/workflows/ci.yml/badge.svg)](https://github.com/tHEtRICKsTER-N/Clawd-Widget/actions/workflows/ci.yml)
+
 </div>
 
 > An unofficial fan project. Clawd is the Claude Code mascot; this project isn't affiliated with or endorsed by Anthropic.
