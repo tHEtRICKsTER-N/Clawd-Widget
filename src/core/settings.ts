@@ -36,6 +36,8 @@ export interface Settings {
   eyesFollow: boolean
   /** Clawd dangles while the widget is dragged and lands with a thud */
   dragReact: boolean
+  /** clicking Clawd itself pokes it (squish, heart, combo) instead of playing */
+  pokes: boolean
   /** widget width in CSS px (height follows the 676×104 aspect) */
   size: number
   showToolbar: boolean
@@ -123,6 +125,7 @@ export const DEFAULT_SETTINGS: Settings = {
   idleBlink: true,
   eyesFollow: true,
   dragReact: true,
+  pokes: true,
   size: 340,
   showToolbar: true,
   enabled: true,

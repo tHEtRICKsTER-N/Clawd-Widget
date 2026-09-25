@@ -84,7 +84,7 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
           <button className="sp-btn" onClick={() => btn.current?.play('random')}>
             🎲 Random
           </button>
-          <span className="sp-hint">Click the button to play it</span>
+          <span className="sp-hint">{s.pokes ? 'Click the button to play it, or poke Clawd' : 'Click the button to play it'}</span>
         </div>
       </section>
 
@@ -178,6 +178,16 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
               Loop
             </button>
           </div>
+          <label className="sp-check" title="Guitar Jam starts with the dark 'pressed' flash from the original">
+            <input type="checkbox" checked={s.pressFlash} onChange={(e) => update({ pressFlash: e.target.checked })} />
+            Tap flash
+          </label>
+        </div>
+      </section>
+
+      <section className="sp-card">
+        <h3>Between plays</h3>
+        <div className="sp-row">
           <label className="sp-check">
             <input type="checkbox" checked={s.idleBlink} onChange={(e) => update({ idleBlink: e.target.checked })} />
             Blink when idle
@@ -186,9 +196,13 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             <input type="checkbox" checked={s.eyesFollow} onChange={(e) => update({ eyesFollow: e.target.checked })} />
             Eyes follow cursor
           </label>
-          <label className="sp-check" title="Guitar Jam starts with the dark 'pressed' flash from the original">
-            <input type="checkbox" checked={s.pressFlash} onChange={(e) => update({ pressFlash: e.target.checked })} />
-            Tap flash
+          <label className="sp-check" title="Clawd dangles while you drag the widget and lands with a thud">
+            <input type="checkbox" checked={s.dragReact} onChange={(e) => update({ dragReact: e.target.checked })} />
+            Dangle when dragged
+          </label>
+          <label className="sp-check" title="Clicking Clawd itself gets a squish and a heart instead of playing. Keep poking for a combo.">
+            <input type="checkbox" checked={s.pokes} onChange={(e) => update({ pokes: e.target.checked })} />
+            Poke Clawd
           </label>
         </div>
       </section>
@@ -233,10 +247,6 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
           <label className="sp-check">
             <input type="checkbox" checked={s.showToolbar} onChange={(e) => update({ showToolbar: e.target.checked })} />
             Hover toolbar
-          </label>
-          <label className="sp-check" title="Clawd dangles while you drag the widget and lands with a thud">
-            <input type="checkbox" checked={s.dragReact} onChange={(e) => update({ dragReact: e.target.checked })} />
-            Dangle when dragged
           </label>
         </div>
         {host === 'extension' && (

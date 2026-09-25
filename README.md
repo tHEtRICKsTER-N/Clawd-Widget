@@ -24,6 +24,7 @@ npm run dev          # web playground at http://localhost:5178
 ## Features
 
 - **Click to play once**, then it rests in an idle pose (blinks, glances around). Choose **Loop** to keep it going after a click.
+- **Poke Clawd:** a click on Clawd itself gets a squish and a heart instead of a play (the rest of the button still plays). Poke fast for a combo ("x5!") with bigger pulses on every hit, and a little celebration every 10. Turn it off with *Poke Clawd*.
 - **Eyes follow your cursor** while Clawd rests, in 8 directions, and look straight at you when the pointer is on it. After a few seconds of stillness it goes back to blinking and glancing around. On desktop it watches the mouse anywhere on screen. Turn it off with *Eyes follow cursor*.
 - **Animations:** Guitar Jam (the original), Hello Wave, Jump Party, Code Mode, Dance Party, Sleepy, or **Random**, which picks a different one on every click.
 - **Customizable:** label text, font (Inter, Space Grotesk, JetBrains Mono, two pixel fonts, System, Serif, or any installed font), bold, and colors for the background, background glow, text, bot, energy cells, energy glow and particles. Includes 7 presets and 4 sizes.
@@ -41,9 +42,10 @@ src/engine/            pure, time-driven animation engine (no DOM)
   sprites.ts           traced guitar-playing frames
   animations/*.ts      one file per animation + registry, idle pose, random pick
   frame.ts             what a play shows at time t (loop seams, fade-out after a play)
-  reactions.ts         live reactions (dangle while dragged, thud on drop) as pure functions of time
+  reactions.ts         live reactions (drag, drop, pokes, combo, celebration) as pure functions of time
 src/core/
   renderer.ts          ClawdButton: framework-free canvas renderer (theme, font, play/loop/idle)
+  life.ts              ClawdLife: what Clawd does between plays (watching, drag and drop, pokes, combos)
   widget.ts            FloatingWidget: draggable/dockable wrapper (page or desktop-window mode)
   settings.ts          Settings model, presets, fonts, colour utils
   store.ts             storage adapters: chrome.storage / Electron IPC / localStorage
@@ -68,7 +70,7 @@ Create `src/engine/animations/<name>.ts` exporting an `AnimationDef` (`duration`
 
 ## Dev tools
 
-- `npm run check:anims`: checks that every animation, and the idle pose, still produces exactly the same frames (sprite, particles, every grid cell, flash overlays; sampled at 60 fps through a play, two loops and the fade-out). It reports the first time that differs. Only run it with `--update` when you add an animation or mean to change one. The snapshot is `scripts/anims.snapshot.json`.
+- `npm run check:anims`: checks that every animation, the idle pose and the live reactions still produce exactly the same frames (sprite, particles, every grid cell, flash overlays; sampled at 60 fps through a play, two loops and the fade-out). It reports the first time that differs. Only run it with `--update` when you add an animation or mean to change one. The snapshot is `scripts/anims.snapshot.json`.
 - **Reference compare** tab: speed 25 / 50 / 100 / 200 % (keys 1–4), play/pause (space), frame step (←/→), scrubber, and the reference clip stacked, overlaid or difference-blended. `?t=7.3` opens paused at that time.
 - `?sheet=<animation>&step=0.15`: contact sheet of one animation.
 - `dev/ext-harness.html`: loads the built `content.js` into a deliberately hostile page with a stubbed `chrome.*`.

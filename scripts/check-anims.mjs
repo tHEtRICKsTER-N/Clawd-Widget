@@ -5,7 +5,8 @@
 //
 // Each animation is sampled at 60 fps through one play, two more loops and the fade-out
 // after it ends. A sample covers what the renderer draws: the sprite, the particles, every
-// grid cell's energy and glow, and the pressed-flash overlays. The idle pose is checked too.
+// grid cell's energy and glow, and the pressed-flash overlays. The idle pose and the live
+// reactions (drag, drop, pokes, combo, celebration) are checked too.
 // Samples are hashed in quarter-second chunks, so a change is reported with its time.
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -29,11 +30,12 @@ const vite = await createServer({
 let current
 try {
   const load = (p) => vite.ssrLoadModule(p)
-  const [{ ANIM_LIST, idlePose }, { playFrame, lingerFrame }, { computeField, createField, LEVELS }, { darkMix, introGlow }] = await Promise.all([
+  const [{ ANIM_LIST, idlePose }, { playFrame, lingerFrame }, { computeField, createField, LEVELS }, { darkMix, introGlow }, R] = await Promise.all([
     load('/src/engine/animations/index.ts'),
     load('/src/engine/frame.ts'),
     load('/src/engine/grid.ts'),
     load('/src/engine/timeline.ts'),
+    load('/src/engine/reactions.ts'),
   ])
   const field = createField()
 
@@ -85,13 +87,31 @@ try {
     for (let i = 0; i < 3 * 3.7 * FPS; i++) samples.push(poseKey(idlePose(i / FPS, blink)))
     current[blink ? 'idle' : 'idle (no blink)'] = fingerprint(samples)
   }
+
+  // live reactions: each sampled from its start until it's over
+  const over = (secs, fn) => {
+    const samples = []
+    for (let i = 0; i <= Math.ceil(secs * FPS); i++) samples.push(fn(i / FPS))
+    return fingerprint(samples)
+  }
+  const orNone = (p) => (p ? poseKey(p) : '-')
+  const pulseKey = (make, t) => fieldKey(t, [make(0)])
+  current['reaction: dangle'] = over(2, (t) => poseKey(R.dangle(t)))
+  current['reaction: drop'] = over(R.DROP + 0.2, (t) => [orNone(R.drop(t)), pulseKey((t0) => R.dropPulse(t0, 900), t)].join('#'))
+  current['reaction: poke'] = over(R.HEART_LIFE + 0.1, (t) =>
+    [orNone(R.poke(t)), particlesKey([0, 1, 2].map((seed) => R.pokeHeart(t, seed)).filter(Boolean)), ...[1, 5, 10].map((n) => pulseKey((t0) => R.pokePulse(t0, n, 700), t))].join('#'),
+  )
+  current['reaction: combo'] = over(R.COMBO_WINDOW + 0.6, (t) => [2, 5, 10, 12, 99].map((n) => particlesKey(R.comboText(n, t, t))).join('#'))
+  current['reaction: celebrate'] = over(R.CELEBRATE + 0.1, (t) =>
+    [orNone(R.celebrate(t)), particlesKey(R.celebrateParticles(t, 3)), fieldKey(t, R.celebratePulses(0, 800).filter((p) => p.t0 <= t))].join('#'),
+  )
 } finally {
   await vite.close()
 }
 
 if (update) {
   writeFileSync(SNAPSHOT, JSON.stringify({ fps: FPS, chunk: CHUNK, anims: current }, null, 1) + '\n')
-  console.log(`snapshot written: ${Object.keys(current).length} animations → ${SNAPSHOT}`)
+  console.log(`snapshot written: ${Object.keys(current).length} entries → ${SNAPSHOT}`)
   process.exit(0)
 }
 
@@ -104,6 +124,7 @@ try {
 }
 
 let bad = 0
+let added = 0
 const pad = Math.max(...Object.keys({ ...saved, ...current }).map((k) => k.length)) + 2
 for (const id of new Set([...Object.keys(saved), ...Object.keys(current)])) {
   const was = saved[id]
@@ -117,10 +138,10 @@ for (const id of new Set([...Object.keys(saved), ...Object.keys(current)])) {
     else if (i < 0) verdict = `DIFFERENT: length changed (${(was.samples / FPS).toFixed(2)} s → ${(now.samples / FPS).toFixed(2)} s of samples)`
     else verdict = `DIFFERENT from ${((i * CHUNK) / FPS).toFixed(2)} s of samples`
   }
-  if (verdict !== 'same') bad++
+  if (!was) added++
+  else if (verdict !== 'same') bad++
   console.log(id.padEnd(pad) + verdict)
 }
-if (bad) {
-  console.error(`\n${bad} animation(s) changed. Existing animations must stay frame-identical.`)
-  process.exit(1)
-}
+if (bad) console.error(`\n${bad} changed. Existing animations must stay frame-identical.`)
+if (added) console.error(`\n${added} new, not in the snapshot yet. Run with --update once they look right.`)
+if (bad || added) process.exit(1)

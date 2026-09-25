@@ -469,6 +469,59 @@
     "6265acd55466",
     "58f48a83ee48"
    ]
+  },
+  "reaction: dangle": {
+   "samples": 121,
+   "chunks": [
+    "d13822a4e3b0",
+    "384ce5da9b1e",
+    "0b947eb3c553",
+    "e274ef32e7c4",
+    "78c6b1209aab",
+    "d13822a4e3b0",
+    "384ce5da9b1e",
+    "0b947eb3c553",
+    "433eba6052cf"
+   ]
+  },
+  "reaction: drop": {
+   "samples": 34,
+   "chunks": [
+    "2adb38baf671",
+    "fe724767ac50",
+    "b1ce9b6a686c"
+   ]
+  },
+  "reaction: poke": {
+   "samples": 52,
+   "chunks": [
+    "746829f0624d",
+    "60595301ac7d",
+    "0d04e054126a",
+    "361e1cf950ef"
+   ]
+  },
+  "reaction: combo": {
+   "samples": 85,
+   "chunks": [
+    "db09da90b8ed",
+    "b0d69faa30cf",
+    "6178cdf44cd9",
+    "6178cdf44cd9",
+    "16e197bd4005",
+    "624cd3eb910c"
+   ]
+  },
+  "reaction: celebrate": {
+   "samples": 89,
+   "chunks": [
+    "575ecc4ef977",
+    "91b8a91e26ed",
+    "5fc21df246fc",
+    "86cdb670bcf1",
+    "58ef36444856",
+    "7aedbcdaca5d"
+   ]
   }
  }
 }

@@ -40,3 +40,33 @@ export const CODE_GLYPHS: string[][] = [
   ['###', '#.#', '#.#', '#.#', '###'], // 0
   ['#.#', '.#.', '#.#'], // ×
 ]
+
+/** 3×5 pixel font for short counters like "x10!" (every glyph is 5 rows, bottom-aligned) */
+const TINY: Record<string, string[]> = {
+  '0': ['###', '#.#', '#.#', '#.#', '###'],
+  '1': ['.#.', '##.', '.#.', '.#.', '###'],
+  '2': ['###', '..#', '###', '#..', '###'],
+  '3': ['###', '..#', '.##', '..#', '###'],
+  '4': ['#.#', '#.#', '###', '..#', '..#'],
+  '5': ['###', '#..', '###', '..#', '###'],
+  '6': ['###', '#..', '###', '#.#', '###'],
+  '7': ['###', '..#', '..#', '.#.', '.#.'],
+  '8': ['###', '#.#', '###', '#.#', '###'],
+  '9': ['###', '#.#', '###', '..#', '###'],
+  x: ['...', '...', '#.#', '.#.', '#.#'],
+  '!': ['#', '#', '#', '.', '#'],
+}
+
+/** Width in px of a tiny-font string (1 px between characters). */
+export const tinyWidth = (s: string) => [...s].reduce((w, ch) => w + (TINY[ch]?.[0].length ?? 3) + 1, -1)
+
+/** A tiny-font string as particles, top-left at (x, y). */
+export function tinyText(s: string, x: number, y: number, color: Particle['color'], alpha = 1): Particle[] {
+  const out: Particle[] = []
+  for (const ch of s) {
+    const glyph = TINY[ch]
+    if (glyph) out.push({ x, y, glyph, color, alpha })
+    x += (glyph?.[0].length ?? 3) + 1
+  }
+  return out
+}

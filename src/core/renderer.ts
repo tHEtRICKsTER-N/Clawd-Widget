@@ -7,17 +7,16 @@
  *   grid canvas → sprite canvas → particle canvas → label
  */
 
-import { ANIMATIONS, idlePose, pickRandom } from '../engine/animations'
-import { BODY, type Gaze } from '../engine/clawd'
+import { ANIMATIONS, pickRandom } from '../engine/animations'
 import { lingerFrame, playFrame } from '../engine/frame'
 import { CELL, CELL_INNER, COLS, REF_H, REF_W, ROWS, computeField, createField } from '../engine/grid'
-import { dangle, drop, dropPulse } from '../engine/reactions'
 import type { Particle } from '../engine/particle'
 import type { Pulse } from '../engine/pulses'
 import { PALETTE, SPRITE_ORIGIN, SPRITE_UNIT } from '../engine/sprites'
 import { darkMix, introGlow } from '../engine/timeline'
 import type { AnimationDef, AnimId, Pose } from '../engine/types'
 import { ensureFont } from './fonts'
+import { ClawdLife, type SpriteToClient } from './life'
 import { darken, fontFamily, fontWeight, lighten, mix, rgba, rgbCsv, type Settings } from './settings'
 
 export const BUTTON_CSS = `
@@ -37,8 +36,6 @@ const PRESS_COLOR = '#1c1e1b'
 const LABEL_LEFT = 22
 const LABEL_RIGHT = 540
 const LABEL_SIZE = 30.5
-/** ms of pointer stillness before Clawd stops watching it and goes back to glancing around */
-const WATCH_FOR = 3000
 
 export interface RendererOptions {
   /** called when a single play finishes */
@@ -88,16 +85,8 @@ export class ClawdButton {
   private palette: Record<string, string> = { ...PALETTE }
   private fxColors: Record<string, string> = {}
   private stateCache: RendererState = { mode: 'idle', anim: null, t: 0, pose: '' }
-  /** where the pointer was last seen (client px) and when (performance.now() ms) */
-  private pointer: { x: number; y: number; at: number } | null = null
-  /** seconds since a drag started / since the drop (null: not happening) */
-  private dragT: number | null = null
-  private dropT: number | null = null
-  /** pulses fired by reactions, on the `clock` timebase */
-  private bursts: Pulse[] = []
-  private burstSeed = 0
-  /** seconds since the button was created */
-  private clock = 0
+  /** what Clawd does between plays (watching, dragging, pokes) */
+  private life = new ClawdLife(() => this.spriteToClient())
 
   constructor(parent: Element | ShadowRoot, settings: Settings, opts: RendererOptions = {}) {
     this.s = settings
@@ -157,9 +146,17 @@ export class ClawdButton {
     this.mode = 'play'
     this.playT = 0
     this.linger = null
-    this.dragT = this.dropT = null
-    this.bursts = []
+    this.life.reset()
     this.opts.onPlay?.(resolved)
+  }
+
+  /**
+   * A click at (x, y) in client px. Landing on a resting Clawd it's a poke (squish, heart,
+   * combo); anywhere else, or while playing, it plays the animation.
+   */
+  click(x: number, y: number) {
+    if (this.s.pokes && this.mode === 'idle' && !this.controlled && this.life.hits(x, y)) this.life.poke()
+    else this.play()
   }
 
   /** Return to the resting state. */
@@ -181,16 +178,8 @@ export class ClawdButton {
    * dangles during the drag and lands with a thud that shakes the grid.
    */
   setDragging(on: boolean) {
-    if (on) {
-      if (this.s.dragReact && this.mode === 'idle' && !this.controlled) {
-        this.dragT = 0
-        this.dropT = null
-      }
-    } else if (this.dragT !== null) {
-      this.dragT = null
-      this.dropT = 0
-      this.bursts.push(dropPulse(this.clock, 900 + (this.burstSeed++ % 64)))
-    }
+    if (!on) this.life.drag(false)
+    else if (this.s.dragReact && this.mode === 'idle' && !this.controlled) this.life.drag(true)
   }
 
   /** Dev/testing: render a fixed time of one animation (null = back to normal). */
@@ -208,7 +197,7 @@ export class ClawdButton {
    * the mouse anywhere on screen) call this too.
    */
   lookAt(x: number, y: number) {
-    this.pointer = { x, y, at: performance.now() }
+    this.life.lookAt(x, y)
   }
 
   destroy() {
@@ -311,7 +300,6 @@ export class ClawdButton {
     this.raf = requestAnimationFrame(this.tick)
     const dt = this.last ? Math.min(0.1, (now - this.last) / 1000) : 0
     this.last = now
-    this.clock += dt * this.speed
     if (Math.max(1, Math.round(window.devicePixelRatio || 1)) !== this.dpr) this.resize()
 
     let anim: AnimationDef | null = null
@@ -345,7 +333,6 @@ export class ClawdButton {
       fieldT = f.fieldT
     } else {
       this.idleT += dt * this.speed
-      pose = this.reaction(dt * this.speed) ?? idlePose(this.idleT, this.s.idleBlink, this.gaze(now))
       if (this.linger) {
         this.linger.t += dt * this.speed
         const f = lingerFrame(this.linger.anim, this.linger.end, this.linger.t)
@@ -355,9 +342,10 @@ export class ClawdButton {
           fieldT = f.fieldT
         }
       }
-      // reaction pulses, moved onto whichever clock the field is on this frame
-      this.bursts = this.bursts.filter((p) => this.clock - p.t0 < p.life * 1.15)
-      if (this.bursts.length) pulses = pulses.concat(this.bursts.map((p) => ({ ...p, t0: fieldT - (this.clock - p.t0) })))
+      const life = this.life.frame(dt * this.speed, now, this.idleT, this.s, fieldT)
+      pose = life.pose
+      particles = life.particles
+      if (life.pulses.length) pulses = pulses.concat(life.pulses)
     }
 
     const press = anim?.pressIntro && this.s.pressFlash ? t : Infinity
@@ -370,8 +358,8 @@ export class ClawdButton {
       pose: pose.name ?? '',
     }
 
-    // skip redraws while nothing changes (idle, no fading pulses)
-    const key = anim || pulses.length ? '' : `${pose.name}|${this.W}`
+    // skip redraws while nothing changes (idle, no fading pulses or particles)
+    const key = anim || pulses.length || particles.length ? '' : `${pose.name}|${this.W}`
     if (key && key === this.drawnKey) return
     this.drawnKey = key
 
@@ -382,29 +370,11 @@ export class ClawdButton {
     this.drawFx(particles)
   }
 
-  /** Pose of a drag / drop reaction in progress (null: none). */
-  private reaction(dt: number): Pose | null {
-    if (this.dragT !== null) return dangle((this.dragT += dt))
-    if (this.dropT === null) return null
-    const p = drop((this.dropT += dt))
-    if (!p) this.dropT = null
-    return p
-  }
-
-  /** Which way Clawd should look to watch the pointer (null: not watching). */
-  private gaze(now: number): Gaze | null {
-    const p = this.pointer
-    if (!p || !this.s.eyesFollow || now - p.at > WATCH_FOR) return null
+  /** Sprite px → client px for where the button is right now. */
+  private spriteToClient(): SpriteToClient {
     const r = this.el.getBoundingClientRect()
     const kk = r.width / REF_W
-    const x = (col: number) => r.left + (SPRITE_ORIGIN.x + col * SPRITE_UNIT) * kk
-    const y = (row: number) => r.top + (SPRITE_ORIGIN.y + row * SPRITE_UNIT) * kk
-    // on its face (or body): look straight at you
-    if (p.x >= x(BODY.x0) && p.x < x(BODY.x1) && p.y >= y(BODY.y0) && p.y < y(BODY.y1)) return [0, 0]
-    const dx = p.x - x((BODY.x0 + BODY.x1) / 2)
-    const dy = p.y - y(BODY.y0 + 3) // eye level
-    const a = (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * Math.PI) / 4
-    return [Math.round(Math.cos(a)), Math.round(Math.sin(a))]
+    return (col, row) => [r.left + (SPRITE_ORIGIN.x + col * SPRITE_UNIT) * kk, r.top + (SPRITE_ORIGIN.y + row * SPRITE_UNIT) * kk]
   }
 
   // ───────────────────────── drawing ─────────────────────────

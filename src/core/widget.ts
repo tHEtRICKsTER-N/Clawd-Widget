@@ -252,7 +252,7 @@ export class FloatingWidget {
       this.wrap.classList.remove('dragging')
       if (this.opts.mode === 'window' && dragging) this.opts.windowDrag?.end()
       if (!dragging) {
-        if (e.type === 'pointerup') this.button.play()
+        if (e.type === 'pointerup') this.button.click(e.clientX, e.clientY)
         return
       }
       dragging = false

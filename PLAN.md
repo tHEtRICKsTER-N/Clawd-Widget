@@ -33,7 +33,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 - [x] **1.2 Dangles while dragged, thuds when dropped** (S)
   While being dragged: air legs, arms up, wide eyes, a small wobble. On drop: crouch, then a `land` pulse through the grid. Works in page mode and desktop mode.
 
-- [ ] **1.3 Poke and combo** (S/M)
+- [x] **1.3 Poke and combo** (S/M)
   A click on Clawd's body gets a squish plus a heart instead of a full play. The rest of the button still plays the animation. Rapid pokes build a combo ("x5!") with bigger pulses on each hit and a small celebration at 10.
 
 - [ ] **1.4 Idle life** (M)
