@@ -60,7 +60,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 - [x] **4.1 Chiptune sound effects** (M), off by default
   Square-wave and noise sounds synthesized with Web Audio, keyed to pulse types (`strum`, `power`, `land`, `twinkle`), so they stay in exact sync with the visuals. No audio files. Volume setting plus a mute button in the toolbar.
 
-- [ ] **4.2 Themes gamers and devs recognize** (S)
+- [x] **4.2 Themes gamers and devs recognize** (S)
   Game Boy DMG, PICO-8, Virtual Boy, Synthwave, Dracula, Catppuccin, Tokyo Night, Nord. Optional CRT scanline overlay. Share codes: copy the theme as a short string and paste one in.
 
 - [ ] **4.3 Konami code and a secret animation** (S)

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ClawdButton } from '../core/renderer'
-import { DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, type Colors, type Settings } from '../core/settings'
+import { DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, parseThemeCode, themeCode, type Colors, type Settings } from '../core/settings'
 import type { SettingsStore } from '../core/store'
 import { ANIM_LIST } from '../engine/animations'
 import { UltracodeButton } from '../UltracodeButton'
@@ -26,6 +26,51 @@ const COLOR_FIELDS: { key: keyof Colors; label: string; group: 'button' | 'bot' 
   { key: 'effectGlow', label: 'Energy glow', group: 'effects' },
   { key: 'particles', label: 'Notes & sparks', group: 'effects' },
 ]
+
+/** The theme as a short code to copy, and a field to paste someone else's. */
+function ShareCode({ s, onApply }: { s: Settings; onApply: (t: { colors: Colors; crt: boolean }) => void }) {
+  const code = themeCode(s)
+  const mine = useRef<HTMLInputElement>(null)
+  const [copied, setCopied] = useState(false)
+  const [paste, setPaste] = useState('')
+  const theirs = paste.trim() ? parseThemeCode(paste) : null
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // no clipboard access here: select it for a manual copy
+      mine.current?.select()
+    }
+  }
+  return (
+    <div className="sp-share">
+      <div className="sp-sub">Share code</div>
+      <div className="sp-share-row">
+        <input ref={mine} className="sp-code" readOnly value={code} onFocus={(e) => e.target.select()} aria-label="Share code for this theme" />
+        <button className="sp-btn" onClick={() => void copy()}>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <div className="sp-share-row">
+        <input className="sp-code" value={paste} placeholder="Paste a code to use its theme" onChange={(e) => setPaste(e.target.value)} aria-label="Paste a share code" />
+        <button
+          className="sp-btn"
+          disabled={!theirs}
+          onClick={() => {
+            if (!theirs) return
+            onApply(theirs)
+            setPaste('')
+          }}
+        >
+          Use
+        </button>
+      </div>
+      {paste.trim() && !theirs && <span className="sp-hint">That isn't a Clawd theme code.</span>}
+    </div>
+  )
+}
 
 /** Whether the system asks for reduced motion (the button then tones itself down). */
 function useReducedMotion() {
@@ -270,16 +315,25 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
 
       <section className="sp-card">
         <h3>Colors</h3>
-        <div className="sp-presets">
-          {PRESETS.map((p) => (
-            <button key={p.id} className={presetId === p.id ? 'sp-preset on' : 'sp-preset'} onClick={() => update({ colors: { ...p.colors } })} title={p.name}>
-              <span className="sw" style={{ background: `linear-gradient(90deg, ${p.colors.background} 0 50%, ${p.colors.glow} 50%)` }} />
-              <span className="dot" style={{ background: p.colors.bot }} />
-              <span className="dot" style={{ background: p.colors.particles }} />
-              <span className="nm">{p.name}</span>
-            </button>
-          ))}
-        </div>
+        {([undefined, 'games'] as const).map((group) => (
+          <div key={group ?? 'classic'} className="sp-preset-group">
+            <div className="sp-sub">{group ? 'Games & editors' : 'Classic'}</div>
+            <div className="sp-presets">
+              {PRESETS.filter((p) => p.group === group).map((p) => (
+                <button key={p.id} className={presetId === p.id ? 'sp-preset on' : 'sp-preset'} onClick={() => update({ colors: { ...p.colors } })} title={p.name}>
+                  <span className="sw" style={{ background: `linear-gradient(90deg, ${p.colors.background} 0 50%, ${p.colors.glow} 50%)` }} />
+                  <span className="dot" style={{ background: p.colors.bot }} />
+                  <span className="dot" style={{ background: p.colors.particles }} />
+                  <span className="nm">{p.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <label className="sp-check" title="Scanlines and a soft vignette, like an old CRT screen">
+          <input type="checkbox" checked={s.crt} onChange={(e) => update({ crt: e.target.checked })} />
+          CRT scanlines
+        </label>
         {(['button', 'bot', 'effects'] as const).map((grp) => (
           <div key={grp} className="sp-colors">
             <div className="sp-sub">{grp === 'button' ? 'Button' : grp === 'bot' ? 'Bot' : 'Effects'}</div>
@@ -292,6 +346,7 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             ))}
           </div>
         ))}
+        <ShareCode s={s} onApply={(t) => update({ colors: t.colors, crt: t.crt })} />
       </section>
 
       <section className="sp-card">

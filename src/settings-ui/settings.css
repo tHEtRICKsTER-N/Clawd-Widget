@@ -55,7 +55,11 @@
 .sp-anim-icon { font-size: 16px; line-height: 1; }
 .sp-anim-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.sp-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.sp-preset-group { display: flex; flex-direction: column; gap: 6px; }
+.sp-share { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.sp-share-row { display: flex; gap: 6px; }
+.sp .sp-share-row .sp-code { flex: 1; min-width: 0; font: 12px ui-monospace, Consolas, monospace; }
+.sp-presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
 .sp-preset { display: grid; grid-template-columns: 22px 9px 9px 1fr; gap: 5px; align-items: center; background: #1f1e25; color: var(--sp-text);
   border: 1px solid var(--sp-line); border-radius: 9px; padding: 6px 8px; font: inherit; cursor: pointer; text-align: left; }
 .sp-preset.on { border-color: var(--sp-accent); background: #262139; }

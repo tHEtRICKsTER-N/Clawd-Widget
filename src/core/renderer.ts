@@ -4,7 +4,7 @@
  *
  * Layers (bottom → top, all clipped by the rounded button):
  *   background (CSS gradient from theme) → intro glow → pressed-dark flash →
- *   grid canvas → sprite canvas → particle canvas → label
+ *   grid canvas → sprite canvas → particle canvas → label → CRT scanlines (optional)
  */
 
 import { ANIMATIONS, pickRandom } from '../engine/animations'
@@ -28,6 +28,8 @@ export const BUTTON_CSS = `
 .cw-canvas{image-rendering:pixelated;image-rendering:crisp-edges}
 .cw-dark{background:#1c1e1b;opacity:0}
 .cw-intro{opacity:0}
+.cw-crt{display:none}
+.cw-btn.crt .cw-crt{display:block}
 .cw-label{position:absolute;top:50%;transform:translateY(-52%);white-space:nowrap;pointer-events:none;line-height:1;
   font-style:normal;text-transform:none;text-shadow:none;letter-spacing:-0.01em;margin:0;padding:0}
 `
@@ -72,6 +74,7 @@ export class ClawdButton {
   private intro: HTMLSpanElement
   private dark: HTMLSpanElement
   private label: HTMLSpanElement
+  private crt: HTMLSpanElement
   private cGrid: HTMLCanvasElement
   private cSprite: HTMLCanvasElement
   private cFx: HTMLCanvasElement
@@ -144,6 +147,7 @@ export class ClawdButton {
     this.cSprite = canvas()
     this.cFx = canvas()
     this.label = span('cw-label')
+    this.crt = span('cw-layer cw-crt')
     this.g = this.cGrid.getContext('2d')!
     this.sp = this.cSprite.getContext('2d')!
     this.fx = this.cFx.getContext('2d')!
@@ -313,6 +317,14 @@ export class ClawdButton {
     L.fontFamily = fontFamily(s)
     L.fontWeight = String(fontWeight(s))
     this.label.textContent = s.text
+
+    // CRT: dark scanlines every few px (scaled with the size) and a soft vignette
+    this.el.classList.toggle('crt', s.crt)
+    const line = Math.max(2, Math.round((3 * width) / 340))
+    this.crt.style.background = [
+      `repeating-linear-gradient(to bottom, rgba(0,0,0,.3) 0 ${line / 3}px, transparent ${line / 3}px ${line}px)`,
+      'radial-gradient(ellipse 75% 95% at 50% 50%, transparent 60%, rgba(0,0,0,.35) 100%)',
+    ].join(',')
 
     this.palette = { ...PALETTE, O: c.bot, o: darken(c.bot, 0.2) }
     this.fxColors = {

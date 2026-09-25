@@ -4,6 +4,29 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 4.2 Themes gamers and devs recognize
+
+**Eight presets**, from each palette's published colours, in a *Games & editors* group under the seven classics:
+- **Game Boy DMG**: the four greens, with a dark Clawd as on the real screen.
+- **PICO-8**: dark blue with PICO-8 orange, blue and yellow.
+- **Virtual Boy**: red on black.
+- **Synthwave**: purple, hot pink and cyan.
+- **Dracula**, **Catppuccin** (Mocha), **Tokyo Night** and **Nord**: each theme's background, foreground and accent colours.
+
+The traced guitar keeps its own colours in every theme, as it always has.
+
+**CRT scanlines** (*CRT scanlines* in the Colors card, off by default): a top layer with dark lines every 3 px at size M (scaled with the size, at least 2 px) and a soft vignette. It is CSS only, so the canvases and `check:anims` are untouched.
+
+**Share codes.** `clawd:` + base64url of 22 bytes: the seven colours in a fixed order, 3 bytes each, and a flags byte (1 = CRT). That's 36 characters, e.g. `clawd:OiZfWDee____2HZP7-j_oHb48MNaAA` for Original. `themeCode()` / `parseThemeCode()` live in `settings.ts`. Parsing trims, accepts the prefix in any case, and rejects anything that isn't exactly 30 base64url characters decoding to 22 bytes with a valid flags byte. The Colors card shows your code with *Copy* (falls back to selecting it when there's no clipboard access) and a paste field whose *Use* button only enables for a valid code.
+
+**Settings layout.** Presets are grouped (*Classic*, *Games & editors*). The preset grid's columns grew from 96 to 150 px: at the playground's width, names were cut to two letters ("Or…"), which was already slightly the case before these longer names.
+
+Verified:
+- All 15 themes rendered mid-Guitar Jam, plus DMG and Synthwave with CRT: every palette reads as itself, and the scanlines and vignette show.
+- Share codes: every preset × CRT on/off round-trips (30/30). Empty, garbage, truncated, over-long, wrong-prefix and bad-character codes are rejected. Whitespace and an upper-case prefix are fine.
+- Settings (Chromium with clipboard permission): *Copy* puts the code on the clipboard and says "Copied". An invalid paste keeps *Use* disabled and says why. A valid Nord + CRT code applies, highlights Nord, clears the field and becomes the current code. It lays out cleanly in the playground and the 392 px popup.
+- `tsc`, `check:anims` (28 × `same`), `build:ext`, `build:desktop` and the renderer pixel check pass.
+
 ## 2026-09-25 · 4.1 Chiptune sound effects
 
 Off by default. Turn it on in the new *Sound* card (with a volume slider), from a speaker button in the hover toolbar, or from *Sound effects* in the desktop right-click menu.
