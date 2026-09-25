@@ -46,6 +46,16 @@ export interface RendererOptions {
   onPlay?: (id: AnimId) => void
 }
 
+/**
+ * What an outside tool says is going on, e.g. Claude Code through hooks: working (loops a
+ * working animation), waiting for you (waves, then a "!" until you click), done (a
+ * celebration), idle (back to resting).
+ */
+export type Status = 'working' | 'waiting' | 'done' | 'idle'
+export const STATUSES: Status[] = ['working', 'waiting', 'done', 'idle']
+/** loops while the status is 'working' */
+const WORKING_ANIM: AnimId = 'code'
+
 export interface RendererState {
   mode: 'idle' | 'play' | 'controlled'
   anim: AnimId | null
@@ -82,6 +92,8 @@ export class ClawdButton {
 
   private mode: 'idle' | 'play' = 'idle'
   private anim: AnimationDef | null = null
+  /** this play loops (true) or plays once (false) whatever the settings say; null: settings decide */
+  private playLoop: boolean | null = null
   private lastAnimId: AnimId | null = null
   private playT = 0
   private idleT = 0
@@ -150,9 +162,13 @@ export class ClawdButton {
     return this.s
   }
 
-  /** Play an animation (default: the one chosen in settings; 'random' picks a different one each time). */
-  play(id?: AnimId | 'random') {
+  /**
+   * Play an animation (default: the one chosen in settings; 'random' picks a different one
+   * each time). `loop` overrides the settings' play-once / loop for this play.
+   */
+  play(id?: AnimId | 'random', opts: { loop?: boolean } = {}) {
     this.wake()
+    this.playLoop = opts.loop ?? null
     const want = id ?? this.s.animation
     const resolved: AnimId = want === 'random' ? pickRandom(this.lastAnimId) : want
     this.anim = ANIMATIONS[resolved]
@@ -172,6 +188,16 @@ export class ClawdButton {
     this.wake()
     if (this.s.pokes && this.mode === 'idle' && !this.controlled && this.life.hits(x, y)) this.life.poke()
     else this.play()
+  }
+
+  /** Show a status from an outside tool (see Status). */
+  setStatus(status: Status) {
+    if (status === 'working') this.play(WORKING_ANIM, { loop: true })
+    else if (status === 'waiting') this.play('hello', { loop: false })
+    else if (status === 'done') this.play('jump', { loop: false })
+    else this.stop()
+    // after play(), which counts as company and would clear it
+    this.life.waiting = status === 'waiting'
   }
 
   /** Return to the resting state. */
@@ -389,7 +415,8 @@ export class ClawdButton {
       t = this.controlled.t
     } else if (this.mode === 'play' && this.anim) {
       this.playT += dt * this.speed
-      if (this.s.playMode === 'once' && this.playT >= this.anim.duration) {
+      const loop = this.playLoop ?? this.s.playMode === 'loop'
+      if (!loop && this.playT >= this.anim.duration) {
         this.linger = { anim: this.anim, end: this.anim.duration, t: 0 }
         this.mode = 'idle'
         this.idleT = 0

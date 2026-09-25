@@ -49,7 +49,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 
 ## Phase 3: Claude Code integration
 
-- [ ] **3.1 Control the running widget from the command line** (S)
+- [x] **3.1 Control the running widget from the command line** (S)
   `Clawd Widget.exe --play jump`, `--state working|waiting|done|idle`. The existing single-instance lock forwards argv to the running widget through `second-instance`. Optionally, a localhost-only endpoint for `curl`, protected by a token file.
 
 - [ ] **3.2 Thinking animation plus hooks recipe** (S/M)

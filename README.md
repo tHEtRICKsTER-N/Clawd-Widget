@@ -64,6 +64,33 @@ dev/                   harness pages to test the built content script and the po
 
 Create `src/engine/animations/<name>.ts` exporting an `AnimationDef` (`duration`, and `pose(t)`, `pulses(t)` and `particles(t)` as pure functions of time). Build poses with `front({...})` and pulses with `scheduled(t, [[time, 'land'], ...])`. Then register it in `animations/index.ts` and add its id to `AnimId`. Every host picks it up automatically. Preview it with `http://localhost:5178/?sheet=<name>`. Once it looks right, run `npm run check:anims -- --update` to add it to the animation snapshot.
 
+## Control it from scripts (desktop)
+
+```bash
+"Clawd Widget.exe" --play jump        # any animation id, or random
+"Clawd Widget.exe" --state working    # working | waiting | done | idle
+```
+
+If the widget is already running, the command goes to it and the new process exits straight away. Otherwise the widget starts and runs it. The states:
+
+| state | what Clawd does |
+|---|---|
+| `working` | loops Code Mode until the next state (or until you click) |
+| `waiting` | waves, then shows a "!" over its head until you click it |
+| `done` | Jump Party, then rests |
+| `idle` | goes back to resting |
+
+`--play` brings a hidden widget back; `--state` leaves it hidden.
+
+For scripts that call it often, a local endpoint is faster than starting the app each time. Turn it on with right-click → **Control from scripts** → **Local endpoint on 127.0.0.1:47823**, then:
+
+```bash
+curl -X POST -H "Authorization: Bearer $(cat "<token file>")" http://127.0.0.1:47823/state/working
+curl -X POST -H "Authorization: Bearer $(cat "<token file>")" http://127.0.0.1:47823/play/dance
+```
+
+The token is in the `control-token` file in the app's data folder (**Show token file** in the same menu), created when you first turn the endpoint on and readable only by you. The endpoint is off by default, listens on this machine only (127.0.0.1), and refuses requests without the token or addressed to another host name. `CLAWD_PORT=<port>` picks another port.
+
 ## Desktop widget notes
 
 - The main process drives dragging by following the real cursor (`desktop/main.cjs`), so moving the window under the pointer can't drop events.

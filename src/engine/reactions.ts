@@ -5,7 +5,7 @@
  */
 
 import { front } from './clawd'
-import { DOT, DOT2, HEART_S, STAR, tinyText, tinyWidth, type Particle } from './particle'
+import { BANG, DOT, DOT2, HEART_S, STAR, tinyText, tinyWidth, type Particle } from './particle'
 import { makePulse, type Pulse } from './pulses'
 import { hash } from './rand'
 import { pose, type Pose } from './types'
@@ -131,4 +131,15 @@ export function celebrateParticles(t: number, seed: number): Particle[] {
     })
   }
   return out
+}
+
+// ───────────────────────── status ─────────────────────────
+
+/** seconds per bob of the waiting badge */
+export const BADGE_BOB = 0.6
+
+/** "!" over Clawd's head while it waits for you (e.g. Claude Code needs input); `still` under reduced motion. */
+export function waitingBadge(t: number, still = false): Particle {
+  const bob = still ? 0 : Math.floor(t / BADGE_BOB) % 2
+  return { x: 30, y: 1 + bob, glyph: BANG, color: 'fx', alpha: 1 }
 }

@@ -1,5 +1,6 @@
 // Desktop widget window: the floating button inside a transparent frameless window.
 import { desktopStore, type DesktopLayout } from '../../src/core/store'
+import { STATUSES, type Status } from '../../src/core/renderer'
 import { FloatingWidget } from '../../src/core/widget'
 import type { AnimId } from '../../src/engine/types'
 
@@ -33,10 +34,14 @@ async function main() {
   applyLayout(layout)
   api.onLayout(applyLayout)
 
+  // for debugging from devtools and for tests
+  ;(window as unknown as { clawdWidget: FloatingWidget }).clawdWidget = w
+
   store.subscribe((s) => w.setSettings(s))
   api.onCursor((x, y) => w.button.lookAt(x, y))
   api.onCommand((cmd, arg) => {
     if (cmd === 'play') w.play(arg as AnimId | 'random' | undefined)
+    else if (cmd === 'state' && STATUSES.includes(arg as Status)) w.button.setStatus(arg as Status)
   })
 
   // Transparent parts of the window let clicks through to whatever is behind it.

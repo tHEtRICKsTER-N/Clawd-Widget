@@ -18,6 +18,7 @@ import {
   HEART_LIFE,
   celebrate,
   celebrateParticles,
+  BADGE_BOB,
   celebratePulses,
   comboText,
   dangle,
@@ -26,6 +27,7 @@ import {
   poke,
   pokeHeart,
   pokePulse,
+  waitingBadge,
 } from '../engine/reactions'
 import type { Pose } from '../engine/types'
 import type { Settings } from './settings'
@@ -64,6 +66,8 @@ const gap = () => ANTIC_GAP[0] + Math.random() * (ANTIC_GAP[1] - ANTIC_GAP[0])
 export class ClawdLife {
   /** reduced motion (set by the renderer): the eyes change direction at most every CALM_GAZE_HOLD ms */
   calm = false
+  /** waiting for the user (status 'waiting'): a "!" over its head and no antics or dozing, until clicked */
+  waiting = false
   /** seconds of life so far; everything below is timed on this clock */
   private clock = 0
   /** where the pointer was last seen (client px) and when (performance.now() ms) */
@@ -186,6 +190,7 @@ export class ClawdLife {
       if (heart) particles.push(heart)
     }
     const cel = c - this.celebrateAt
+    if (this.waiting) particles.push(waitingBadge(c, this.calm))
     particles.push(...comboText(this.combo, c - this.pokeAt, cel))
     if (cel < CELEBRATE) particles.push(...celebrateParticles(cel, this.celebrateSeed))
 
@@ -210,6 +215,7 @@ export class ClawdLife {
     let rest = idleNextChange(idleT, s.idleBlink, watching)
     if (watching && this.pointer) rest = Math.min(rest, (this.pointer.at + WATCH_FOR - now) / 1000 + 0.001)
     if (this.calm && now < this.gazeFree) rest = Math.min(rest, (this.gazeFree - now) / 1000 + 0.001)
+    if (this.waiting && !this.calm) rest = Math.min(rest, BADGE_BOB - (c % BADGE_BOB) + 0.001)
     if (s.idleAntics) rest = Math.min(rest, this.nextAntic - c, this.nearAt + DOZE_AFTER - c)
     return Math.max(0, rest)
   }
@@ -217,9 +223,9 @@ export class ClawdLife {
   /** Start, end and switch antics, dozing and waking up. `busy`: a reaction is showing. */
   private updateAct(c: number, s: Settings, busy: boolean) {
     const act = this.act
-    if (!s.idleAntics) {
+    if (!s.idleAntics || this.waiting) {
       this.act = null
-      this.nearAt = c // nobody dozes off while antics are off
+      this.nearAt = c // nobody dozes off while antics are off, or while waiting for you
       return
     }
     if (act?.def === doze && this.nearAt > act.at) {
@@ -243,8 +249,9 @@ export class ClawdLife {
     }
   }
 
-  /** Clicked, dragged or played: counts as company, and ends any antic, doze or wake-up. */
+  /** Clicked, dragged or played: counts as company, ends any antic, doze or wake-up, and any waiting. */
   private touch() {
+    this.waiting = false
     this.nearAt = this.clock
     if (this.act) this.nextAntic = this.clock + gap()
     this.act = null

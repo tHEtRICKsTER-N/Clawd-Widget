@@ -126,6 +126,8 @@ try {
     [orNone(R.celebrate(t)), particlesKey(R.celebrateParticles(t, 3)), fieldKey(t, R.celebratePulses(0, 800).filter((p) => p.t0 <= t))].join('#'),
   )
 
+  current['reaction: waiting badge'] = over(2 * R.BADGE_BOB + 0.1, (t) => particlesKey([R.waitingBadge(t), R.waitingBadge(t, true)]))
+
   // antics, dozing and waking up
   const act = (a, secs) => over(secs, (t) => [poseKey(a.pose(t)), particlesKey(a.particles(t)), fieldKey(t, a.pulses(t))].join('#'))
   for (const [id, a] of Object.entries(Antics.ANTICS)) current[`antic: ${id}`] = act(a, a.duration + 0.1)

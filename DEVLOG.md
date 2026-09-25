@@ -4,6 +4,35 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-25 · 3.1 Control the running widget from the command line
+
+`Clawd Widget.exe --play <animation>` and `--state working|waiting|done|idle`, also written `--play=jump`. Values are checked; an unknown one prints the valid list and does nothing.
+
+**Forwarding.** The desktop app already held a single-instance lock. A second start now passes its parsed command to the running widget as `requestSingleInstanceLock({ cli })` additional data, rather than letting the running widget re-parse the forwarded `argv`, which Chromium may reorder or add switches to. The second process exits at once. With no command it still just brings the widget back, as before. A command given when the app itself is starting runs once the widget page has loaded. `--play` shows a hidden widget; `--state` doesn't, because a hook firing on every prompt shouldn't undo "Hide".
+
+**States** (`ClawdButton.setStatus`, in core so any host can use it; only the desktop app has a way to receive them today):
+- `working` loops Code Mode until the next state (3.2 swaps in a Thinking animation). `play(id, { loop })` gained a per-play loop override for this, so it loops even with *Play once* set.
+- `waiting` plays Hello Wave once, then rests with a bobbing "!" over its head (`waitingBadge`, still under reduced motion). Antics and dozing are suspended while waiting, and any click, poke or drag clears it.
+- `done` plays Jump Party once; `idle` stops.
+
+**Local endpoint (the plan's optional part).** A menu checkbox, off by default: *Control from scripts → Local endpoint on 127.0.0.1:47823* (`CLAWD_PORT` overrides the port). `POST /play/<animation>` and `POST /state/<state>` return 204. What guards it:
+- It listens on 127.0.0.1 only.
+- The `Host` header must be `127.0.0.1:<port>` or `localhost:<port>` (against DNS rebinding).
+- It needs `Authorization: Bearer <token>`, compared in constant time. The token is 48 hex characters from `crypto.randomBytes`, in `control-token` in the app's data folder, created on first use with mode 600.
+- Only POST is accepted, and there is no CORS, so a web page can't call it: a browser's pre-flight gets a 401 with no CORS headers.
+
+*Show token file* reveals it in the file manager.
+
+Verified (Electron 44 under Xvfb; real second processes started with the same `CLAWD_USER_DATA`, so they hit the same lock):
+- Launched with `--state working`: plays Code Mode. Second instance `--play jump`: exits 0, and the widget plays Jump Party. `--state=waiting`: after the wave, resting with `waiting` on, and the screenshot shows the "!". `--state done` → Jump Party. `--state idle` → resting. `--play nope` → "unknown animation" and nothing changes.
+- With the widget hidden: `--state working` leaves it hidden, `--play hello` shows it.
+- Endpoint: no token 401, wrong token 401, foreign Host 403, GET 405, unknown path 404, unknown state 400. Correct requests return 204 and take effect, via `127.0.0.1` and `localhost`. The token file has mode 600. Connecting on the machine's network address (192.0.2.2) is refused.
+- Browser (playground `FloatingWidget`): `working` still loops at 5 s with *Play once* set. `waiting` shows the badge after the wave. A label click while waiting plays and clears it; a poke clears it too. `done` ends resting.
+- `check:anims`: a `reaction: waiting badge` entry was added (snapshot only gained lines; 26 × `same`). `tsc`, `build:ext` and `build:desktop` pass.
+- The desktop widget page now exposes `window.clawdWidget` for devtools and tests.
+
+Not verified: the packaged Windows `.exe`, where Chromium's handling of `argv` is what `additionalData` guards against.
+
 ## 2026-09-25 · 2.1 Reduced motion and flash cap
 
 When the system asks for reduced motion (`prefers-reduced-motion: reduce`; on Windows that's *Animation effects* off, and Electron follows it), the button tones itself down. Nothing changes for anyone else: the renderer pixel check is identical and every `check:anims` entry is `same`.
