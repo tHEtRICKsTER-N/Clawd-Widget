@@ -12,6 +12,7 @@ import { gazeToward, type Gaze } from '../engine/clawd'
 import { CELL, CELL_INNER, COLS, REF_H, REF_W, ROWS, computeField, createField } from '../engine/grid'
 import type { Particle } from '../engine/particle'
 import type { Pulse } from '../engine/pulses'
+import { LANDING_END, MAX_LEAN, dangle, landing, type Reaction } from '../engine/reactions'
 import { PALETTE, SPRITE_ORIGIN, SPRITE_UNIT } from '../engine/sprites'
 import { darkMix, introGlow } from '../engine/timeline'
 import type { AnimationDef, AnimId, Pose } from '../engine/types'
@@ -42,6 +43,8 @@ const EYES_REF = { x: SPRITE_ORIGIN.x + 16.5 * SPRITE_UNIT, y: SPRITE_ORIGIN.y +
 const FACE_R = 14
 /** keep watching this long after the pointer last moved, ms */
 const WATCH_MS = 5000
+/** carrying speed (screen px/s) per sprite px of lean */
+const LEAN_SPEED = 400
 
 export interface RendererOptions {
   /** called when a single play finishes */
@@ -94,6 +97,12 @@ export class ClawdButton {
   /** last known pointer, client coordinates; dirty = gaze needs recomputing */
   private pointer = { x: 0, y: 0, at: -Infinity, dirty: false }
   private gaze: Gaze = [0, 0]
+  /** being dragged: seconds held, smoothed horizontal speed (px/s), last pointer x and when */
+  private held: { t: number; vx: number; x: number; at: number } | null = null
+  /** put down this many seconds ago */
+  private landed: { t: number } | null = null
+  /** looping animation interrupted by a drag, restarted after the landing */
+  private resumeAnim: AnimId | null = null
 
   constructor(parent: Element | ShadowRoot, settings: Settings, opts: RendererOptions = {}) {
     this.s = settings
@@ -154,6 +163,8 @@ export class ClawdButton {
     this.mode = 'play'
     this.playT = 0
     this.linger = null
+    this.landed = null
+    this.resumeAnim = null
     this.opts.onPlay?.(resolved)
   }
 
@@ -191,6 +202,42 @@ export class ClawdButton {
     p.y = y
     p.at = performance.now()
     p.dirty = true
+  }
+
+  /** The widget was picked up (a drag started): Clawd dangles until drop(). */
+  grab() {
+    if (!this.s.dragReactions) return
+    // an animation in progress stops; a looping one starts again after the landing
+    if (this.mode === 'play' && this.anim) {
+      this.resumeAnim = this.s.playMode === 'loop' ? this.anim.id : null
+      this.stop()
+    }
+    this.landed = null
+    this.held = { t: 0, vx: 0, x: NaN, at: performance.now() }
+  }
+
+  /** Pointer x while carried, in screen px (screen, so it keeps working while the desktop window moves). */
+  carry(screenX: number) {
+    const h = this.held
+    if (!h) return
+    const now = performance.now()
+    if (Number.isNaN(h.x)) {
+      h.x = screenX
+      h.at = now
+      return
+    }
+    const dt = (now - h.at) / 1000
+    if (dt < 0.004) return // coalesced events: wait for a measurable interval
+    h.vx += ((screenX - h.x) / dt - h.vx) * (1 - Math.exp(-dt / 0.08))
+    h.x = screenX
+    h.at = now
+  }
+
+  /** Put down: a short fall, a thud, then back to normal. */
+  drop() {
+    if (!this.held) return
+    this.held = null
+    this.landed = { t: 0 }
   }
 
   destroy() {
@@ -343,6 +390,17 @@ export class ClawdButton {
           pulses = L.anim.pulses(fieldT).filter((p) => p.t0 <= L.end)
         }
       }
+      const r = this.react(dt * this.speed, now)
+      if (r) {
+        if (r.pose) pose = r.pose
+        particles = r.particles
+        if (r.pulses.length) {
+          // put the reaction's pulses on the clock the lingering ones already use
+          if (!pulses.length) fieldT = r.t
+          const off = fieldT - r.t
+          pulses = pulses.concat(off ? r.pulses.map((p) => ({ ...p, t0: p.t0 + off })) : r.pulses)
+        }
+      }
     }
 
     const press = anim?.pressIntro && this.s.pressFlash ? t : Infinity
@@ -355,8 +413,8 @@ export class ClawdButton {
       pose: pose.name ?? '',
     }
 
-    // skip redraws while nothing changes (idle, no fading pulses)
-    const key = anim || pulses.length ? '' : `${pose.name}|${this.W}`
+    // skip redraws while nothing changes (idle, no fading pulses or particles)
+    const key = anim || pulses.length || particles.length ? '' : `${pose.name}|${this.W}`
     if (key && key === this.drawnKey) return
     this.drawnKey = key
 
@@ -365,6 +423,25 @@ export class ClawdButton {
     this.drawGrid(pulses, fieldT)
     this.drawSprite(pose)
     this.drawFx(particles)
+  }
+
+  /** Drag reactions: dangling while held, then the landing. Null when neither is happening. */
+  private react(dt: number, now: number): (Reaction & { t: number }) | null {
+    const h = this.held
+    if (h) {
+      h.t += dt
+      // the pointer stopped moving: the sway settles
+      if (now - h.at > 60) h.vx *= Math.exp(-dt / 0.12)
+      const lean = -Math.max(-MAX_LEAN, Math.min(MAX_LEAN, Math.round(h.vx / LEAN_SPEED)))
+      return { t: h.t, pose: dangle(h.t, lean), pulses: [], particles: [] }
+    }
+    const L = this.landed
+    if (!L) return null
+    L.t += dt
+    if (L.t < LANDING_END) return { t: L.t, ...landing(L.t) }
+    this.landed = null
+    if (this.resumeAnim) this.play(this.resumeAnim)
+    return null
   }
 
   /** Which way idle Clawd looks: toward a pointer that moved recently, else null (normal idle). */

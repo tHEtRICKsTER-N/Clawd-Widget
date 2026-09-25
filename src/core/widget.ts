@@ -231,9 +231,11 @@ export class FloatingWidget {
       if (!dragging) {
         dragging = true
         this.wrap.classList.add('dragging')
+        this.button.grab()
         // desktop: from here the main process moves the window with the real cursor
         if (this.opts.mode === 'window') this.opts.windowDrag?.start()
       }
+      this.button.carry(e.screenX)
       if (this.opts.mode === 'window') return
       const { w, h } = this.size
       const vw = document.documentElement.clientWidth || window.innerWidth
@@ -255,6 +257,7 @@ export class FloatingWidget {
         return
       }
       dragging = false
+      this.button.drop()
       if (this.opts.mode === 'page') this.settle()
     }
     slot.addEventListener('pointerup', end)

@@ -34,6 +34,8 @@ export interface Settings {
   idleBlink: boolean
   /** idle Clawd's eyes follow the pointer (desktop: anywhere on screen) */
   followCursor: boolean
+  /** Clawd dangles while the widget is dragged and lands with a thud when dropped */
+  dragReactions: boolean
   /** widget width in CSS px (height follows the 676×104 aspect) */
   size: number
   showToolbar: boolean
@@ -120,6 +122,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pressFlash: true,
   idleBlink: true,
   followCursor: true,
+  dragReactions: true,
   size: 340,
   showToolbar: true,
   enabled: true,

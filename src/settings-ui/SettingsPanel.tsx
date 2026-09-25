@@ -178,6 +178,16 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
               Loop
             </button>
           </div>
+          <label className="sp-check" title="Guitar Jam starts with the dark 'pressed' flash from the original">
+            <input type="checkbox" checked={s.pressFlash} onChange={(e) => update({ pressFlash: e.target.checked })} />
+            Tap flash
+          </label>
+        </div>
+      </section>
+
+      <section className="sp-card">
+        <h3>Personality</h3>
+        <div className="sp-row">
           <label className="sp-check">
             <input type="checkbox" checked={s.idleBlink} onChange={(e) => update({ idleBlink: e.target.checked })} />
             Blink when idle
@@ -186,9 +196,9 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             <input type="checkbox" checked={s.followCursor} onChange={(e) => update({ followCursor: e.target.checked })} />
             Eyes follow cursor
           </label>
-          <label className="sp-check" title="Guitar Jam starts with the dark 'pressed' flash from the original">
-            <input type="checkbox" checked={s.pressFlash} onChange={(e) => update({ pressFlash: e.target.checked })} />
-            Tap flash
+          <label className="sp-check" title="Clawd dangles while you drag the widget and lands with a thud when you let go">
+            <input type="checkbox" checked={s.dragReactions} onChange={(e) => update({ dragReactions: e.target.checked })} />
+            React when dragged
           </label>
         </div>
       </section>

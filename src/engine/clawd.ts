@@ -8,7 +8,8 @@ import type { SpriteFrame } from './sprites'
 
 export type Eyes = 'open' | 'closed' | 'happy' | 'wide' | 'look' | 'lookL' | 'lookR'
 export type Arm = 'side' | 'up' | 'high' | 'down' | 'none'
-export type Legs = 'stand' | 'crouch' | 'air'
+/** kickL / kickR: dangling, one pair of legs pulled up (alternate them to kick) */
+export type Legs = 'stand' | 'crouch' | 'air' | 'kickL' | 'kickR'
 /** pupil offset for open eyes, each axis -1 | 0 | 1 (x < 0 = left, y < 0 = up) */
 export type Gaze = [number, number]
 
@@ -73,7 +74,10 @@ export function front(p: FrontPose = {}): SpriteFrame {
   // body + legs
   rect(X + 4, b, 17, 12 - sq, 'O')
   const legRows = crouch ? 2 : 4
-  for (const lx of [4, 8, 15, 19]) rect(X + lx, b + 12 - sq, 2, legRows, 'O')
+  ;[4, 8, 15, 19].forEach((lx, i) => {
+    const up = (legs === 'kickL' && i % 2 === 0) || (legs === 'kickR' && i % 2 === 1)
+    rect(X + lx, b + 12 - sq, 2, up ? legRows - 1 : legRows, 'O')
+  })
 
   // arms
   const arm = (side: 'l' | 'r', a: Arm) => {
