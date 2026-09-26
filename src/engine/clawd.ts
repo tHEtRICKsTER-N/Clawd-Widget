@@ -8,18 +8,24 @@ import type { SpriteFrame } from './sprites'
 
 export type Eyes = 'open' | 'closed' | 'happy' | 'wide' | 'look' | 'lookL' | 'lookR'
 export type Arm = 'side' | 'up' | 'high' | 'down' | 'none'
-export type Legs = 'stand' | 'crouch' | 'air'
+/** stepA / stepB: walking, one pair of legs lifted off the ground */
+export type Legs = 'stand' | 'crouch' | 'air' | 'stepA' | 'stepB'
+/** a direction, one step each way: [-1 left … 1 right, -1 up … 1 down]; [0, 0] = straight at you */
+export type Gaze = [x: number, y: number]
 
 export interface FrontPose {
   eyes?: Eyes
+  /** open eyes looking this way (eyes: 'open' only) */
+  gaze?: Gaze
   left?: Arm
   right?: Arm
   legs?: Legs
   /** body offset in sprite px (dy < 0 = up) */
   dx?: number
   dy?: number
-  mouth?: boolean
-  /** body squashed down by n px while the feet stay planted (breathing) */
+  /** true: a small mouth; 'open': wide open (yawning) */
+  mouth?: boolean | 'open'
+  /** body squashed down by n px while the feet stay planted (breathing); negative stretches it taller */
   squash?: number
   /** draw hands on the laptop (default true) */
   hands?: boolean
@@ -31,6 +37,9 @@ export interface FrontPose {
 const TOP = -12
 const H = 44
 const W = 40
+
+/** body of the standing front pose, sprite px [x0, x1) × [y0, y1) */
+export const BODY = { x0: 8, y0: 9, x1: 25, y1: 21 }
 
 const cache = new Map<string, SpriteFrame>()
 
@@ -57,7 +66,11 @@ export function front(p: FrontPose = {}): SpriteFrame {
   // body + legs
   rect(X + 4, b, 17, 12 - sq, 'O')
   const legRows = crouch ? 2 : 4
-  for (const lx of [4, 8, 15, 19]) rect(X + lx, b + 12 - sq, 2, legRows, 'O')
+  for (const lx of [4, 8, 15, 19]) {
+    // walking: the lifted pair is a pixel shorter, so its feet leave the ground
+    const lifted = (legs === 'stepA' && (lx === 4 || lx === 15)) || (legs === 'stepB' && (lx === 8 || lx === 19))
+    rect(X + lx, b + 12 - sq, 2, legRows - (lifted ? 1 : 0), 'O')
+  }
 
   // arms
   const arm = (side: 'l' | 'r', a: Arm) => {
@@ -76,7 +89,7 @@ export function front(p: FrontPose = {}): SpriteFrame {
   const eye = (ex: number) => {
     switch (eyes) {
       case 'open':
-        rect(ex, b + 2, 2, 2, 'E')
+        rect(ex + (p.gaze?.[0] ?? 0), b + 2 + (p.gaze?.[1] ?? 0), 2, 2, 'E')
         break
       case 'wide':
         rect(ex, b + 2, 2, 2, 'E')
@@ -103,7 +116,8 @@ export function front(p: FrontPose = {}): SpriteFrame {
   }
   eye(X + 6)
   eye(X + 17)
-  if (p.mouth) rect(X + 11, b + 6, 3, 1, 'E')
+  if (p.mouth === 'open') rect(X + 11, b + 6, 3, 2, 'E')
+  else if (p.mouth) rect(X + 11, b + 6, 3, 1, 'E')
 
   // laptop: back of the lid faces us, logo pixel in the middle
   if (p.laptop) {
@@ -125,7 +139,13 @@ export function front(p: FrontPose = {}): SpriteFrame {
   if (first < 0) first = 0
   let last = H - 1
   while (last > first && g[last].every((c) => c === '.')) last--
-  const frame: SpriteFrame = { dx: 0, dy: TOP + first, rows: g.slice(first, last + 1).map((r) => r.join('')) }
+  const frame: SpriteFrame = {
+    dx: 0,
+    dy: TOP + first,
+    rows: g.slice(first, last + 1).map((r) => r.join('')),
+    // the body's top row: raised arms can't be mistaken for the head
+    head: { x: X + 4 + 17 / 2, y: b, w: 17 },
+  }
   cache.set(key, frame)
   return frame
 }

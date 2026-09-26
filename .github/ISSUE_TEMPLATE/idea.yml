@@ -1,0 +1,30 @@
+name: Idea
+description: A new animation, theme, hat, game or feature
+labels: [idea]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of idea
+      options:
+        - Animation
+        - Theme
+        - Something for Clawd to wear
+        - Game or secret
+        - Integration (Claude Code, streaming, …)
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Describe it
+      description: What would Clawd do? A sketch, a GIF or a reference helps.
+    validations:
+      required: true
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Want to build it?
+      options:
+        - label: I'd like to try (see CONTRIBUTING.md)

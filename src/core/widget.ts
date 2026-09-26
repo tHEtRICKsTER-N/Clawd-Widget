@@ -10,9 +10,12 @@
  * A click (pointer moved < 5px) plays the animation; a drag only moves.
  */
 
+import { COSMETICS } from '../engine/cosmetics'
 import type { AnimId } from '../engine/types'
+import { AchievementTracker } from './achievements'
 import { BUTTON_CSS, ClawdButton } from './renderer'
 import type { Settings } from './settings'
+import type { StatsStore } from './store'
 
 export interface Dock {
   h: 'left' | 'right'
@@ -36,6 +39,12 @@ const ICONS = {
     '<svg viewBox="0 0 16 16" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.5 5h6M12.5 5h1M2.5 11h1.5M7.5 11h6"/><circle cx="10.5" cy="5" r="1.7"/><circle cx="5.7" cy="11" r="1.7"/></g></svg>',
   close:
     '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.3 4.3l7.4 7.4M11.7 4.3l-7.4 7.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+  game:
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M4.6 4.2h6.8a3.6 3.6 0 0 1 3.6 3.6v1a2.8 2.8 0 0 1-5 1.7l-.6-.8H6.6l-.6.8a2.8 2.8 0 0 1-5-1.7v-1a3.6 3.6 0 0 1 3.6-3.6z"/><path d="M4.6 6.2v2.6M3.3 7.5h2.6" stroke="#12101a" stroke-width="1.2" stroke-linecap="round"/><circle cx="10.9" cy="6.7" r=".85" fill="#12101a"/><circle cx="12.3" cy="8.3" r=".85" fill="#12101a"/></svg>',
+  soundOn:
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2.5 6h2.3L8.5 3v10L4.8 10H2.5z"/><path d="M10.7 5.6a3.4 3.4 0 010 4.8M12.6 3.9a5.8 5.8 0 010 8.2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  soundOff:
+    '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2.5 6h2.3L8.5 3v10L4.8 10H2.5z"/><path d="M10.6 6.1l3.8 3.8M14.4 6.1l-3.8 3.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
 }
 
 const WIDGET_CSS = `
@@ -76,6 +85,10 @@ export interface WidgetOptions {
   /** page mode: attach to this element instead of document.documentElement */
   container?: HTMLElement
   onPlay?: (id: AnimId) => void
+  /** save a settings change made from the widget itself (the sound button); without it there's no sound button */
+  onPatch?: (patch: Partial<Settings>) => void
+  /** where achievement stats are kept; without it there are no achievements */
+  stats?: StatsStore
 }
 
 export class FloatingWidget {
@@ -85,11 +98,13 @@ export class FloatingWidget {
   private wrap: HTMLDivElement
   private opts: WidgetOptions
   private dock: Dock
-  private settings: Settings
+  private _settings: Settings
+  private soundBtn: HTMLButtonElement | null = null
+  private tracker: AchievementTracker | null = null
 
   constructor(opts: WidgetOptions) {
     this.opts = opts
-    this.settings = opts.settings
+    this._settings = opts.settings
     this.dock = { ...(opts.dock ?? DEFAULT_DOCK) }
 
     const host = document.createElement(opts.mode === 'page' ? 'clawd-widget' : 'div')
@@ -117,9 +132,29 @@ export class FloatingWidget {
       })
       b.addEventListener('pointerdown', (e) => e.stopPropagation())
       bar.appendChild(b)
+      return b
     }
-    tool(ICONS.play, 'Play', () => this.button.play())
-    tool(ICONS.shuffle, 'Play a random animation', () => this.button.play('random'))
+    tool(ICONS.play, 'Play', () => {
+      this.button.unlockSound()
+      this.button.play()
+    })
+    tool(ICONS.shuffle, 'Play a random animation', () => {
+      this.button.unlockSound()
+      this.button.play('random')
+    })
+    tool(ICONS.game, 'Bug Jump (click or Space to jump, Esc to quit)', () => {
+      if (this.button.gaming) this.button.stopGame()
+      else this.button.startGame()
+    })
+    if (opts.onPatch) {
+      this.soundBtn = tool(ICONS.soundOff, 'Sound', () => {
+        const next = { ...this._settings, sound: !this._settings.sound }
+        // apply at once (the gesture lets audio start); the host saves it and echoes it back
+        this.setSettings(next)
+        this.button.unlockSound()
+        opts.onPatch!({ sound: next.sound })
+      })
+    }
     if (opts.onOpenSettings) tool(ICONS.settings, 'Customize', opts.onOpenSettings)
     if (opts.onClose) tool(ICONS.close, opts.closeLabel ?? 'Hide', opts.onClose)
     wrap.appendChild(bar)
@@ -129,11 +164,24 @@ export class FloatingWidget {
     wrap.appendChild(slot)
     this.shadow.appendChild(wrap)
 
-    this.button = new ClawdButton(slot, this.settings, { onPlay: opts.onPlay })
+    if (opts.stats) {
+      this.tracker = new AchievementTracker(opts.stats, (a) => {
+        const reward = COSMETICS.find((c) => c.id === a.reward)
+        this.button.toast(`🏆 ${a.name}${reward ? ` +${reward.name}` : ''}`)
+      })
+    }
+    this.button = new ClawdButton(slot, this._settings, {
+      onPlay: opts.onPlay,
+      onEvent: (e) => this.tracker?.event(e),
+      bestScore: () => this.tracker?.stats.bugJumpBest ?? 0,
+    })
     this.bindPointer(slot)
     this.button.el.addEventListener('keydown', (e) => {
+      // in a game, Space jumps (the button handles it)
+      if (this.button.gaming) return
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
+        this.button.unlockSound()
         this.button.play()
       }
     })
@@ -157,8 +205,12 @@ export class FloatingWidget {
     this.applySettings()
   }
 
+  get settings(): Settings {
+    return this._settings
+  }
+
   setSettings(s: Settings) {
-    this.settings = s
+    this._settings = s
     this.button.setSettings(s)
     this.applySettings()
     if (this.opts.mode === 'page') this.applyDock()
@@ -179,17 +231,26 @@ export class FloatingWidget {
   }
 
   destroy() {
+    this.tracker?.destroy()
     window.removeEventListener('resize', this.onResize)
     this.button.destroy()
     this.host.remove()
   }
 
   private applySettings() {
-    this.wrap.classList.toggle('nobar', !this.settings.showToolbar)
+    this.wrap.classList.toggle('nobar', !this._settings.showToolbar)
+    const b = this.soundBtn
+    if (b) {
+      const on = this._settings.sound
+      b.innerHTML = on ? ICONS.soundOn : ICONS.soundOff
+      b.title = on ? 'Sound is on (click to mute)' : 'Sound is off (click for chiptune sounds)'
+      b.setAttribute('aria-label', 'Sound effects')
+      b.setAttribute('aria-pressed', String(on))
+    }
   }
 
   private get size() {
-    const w = this.settings.size
+    const w = this._settings.size
     return { w, h: Math.round((w * 104) / 676) }
   }
 
@@ -231,6 +292,7 @@ export class FloatingWidget {
       if (!dragging) {
         dragging = true
         this.wrap.classList.add('dragging')
+        this.button.setDragging(true)
         // desktop: from here the main process moves the window with the real cursor
         if (this.opts.mode === 'window') this.opts.windowDrag?.start()
       }
@@ -251,10 +313,11 @@ export class FloatingWidget {
       this.wrap.classList.remove('dragging')
       if (this.opts.mode === 'window' && dragging) this.opts.windowDrag?.end()
       if (!dragging) {
-        if (e.type === 'pointerup') this.button.play()
+        if (e.type === 'pointerup') this.button.click(e.clientX, e.clientY)
         return
       }
       dragging = false
+      this.button.setDragging(false)
       if (this.opts.mode === 'page') this.settle()
     }
     slot.addEventListener('pointerup', end)

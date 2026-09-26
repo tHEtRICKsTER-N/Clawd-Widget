@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { localStore } from './core/store'
+import { localStatsStore, localStore } from './core/store'
 import { DEFAULT_DOCK, FloatingWidget, type Dock } from './core/widget'
 import { ReferenceCompare } from './ReferenceCompare'
 import { SettingsPanel } from './settings-ui/SettingsPanel'
@@ -34,6 +34,8 @@ function PageWidget() {
         onDock: (d) => localStorage.setItem(DOCK_KEY, JSON.stringify(d)),
         onClose: () => w?.host.style.setProperty('display', 'none'),
         closeLabel: 'Hide (reload to bring back)',
+        onPatch: (p) => w && void store.save({ ...w.settings, ...p }),
+        stats: localStatsStore(),
       })
       off = store.subscribe((v) => w?.setSettings(v))
     })
@@ -54,6 +56,7 @@ export default function App() {
 function Main() {
   const [tab, setTab] = useState<Tab>(params.has('t') || params.get('tab') === 'compare' ? 'compare' : 'playground')
   const store = useMemo(() => localStore(), [])
+  const stats = useMemo(() => localStatsStore(), [])
 
   return (
     <div className="shell">
@@ -75,7 +78,7 @@ function Main() {
             Customize it here. The floating widget in the corner is the same one the browser extension and desktop app use: drag it anywhere, and it
             docks to the nearest edge. Click to play.
           </p>
-          <SettingsPanel store={store} host="web" />
+          <SettingsPanel store={store} host="web" stats={stats} />
           <PageWidget />
         </main>
       ) : (

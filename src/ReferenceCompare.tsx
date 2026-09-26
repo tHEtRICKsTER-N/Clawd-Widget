@@ -104,7 +104,7 @@ export function ReferenceCompare() {
         {showRef && compare === 'stacked' && (
           <figure className="lane">
             <figcaption>Reference</figcaption>
-            <video ref={videoRef} className="ref" src="/reference.webm" muted playsInline preload="auto" width={W} height={H} />
+            <video ref={videoRef} className="ref" src={`${import.meta.env.BASE_URL}reference.webm`} muted playsInline preload="auto" width={W} height={H} />
           </figure>
         )}
 
@@ -118,7 +118,7 @@ export function ReferenceCompare() {
               <video
                 ref={videoRef}
                 className="ref ref-over"
-                src="/reference.webm"
+                src={`${import.meta.env.BASE_URL}reference.webm`}
                 muted
                 playsInline
                 preload="auto"

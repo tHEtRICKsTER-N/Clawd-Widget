@@ -3,6 +3,7 @@
 // (content scripts can't be ES modules). Fonts are inlined so pages' CSP can't block them.
 import { build } from 'vite'
 import react from '@vitejs/plugin-react'
+import { copyFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const root = resolve('extension')
@@ -39,5 +40,9 @@ await build({
     lib: { entry: resolve(root, 'src/content.ts'), formats: ['iife'], name: 'ClawdWidget', fileName: () => 'content.js' },
   },
 })
+
+// the extension's own license and those of the fonts and libraries bundled into it
+copyFileSync('LICENSE', resolve(outDir, 'LICENSE'))
+copyFileSync('THIRD_PARTY_LICENSES.txt', resolve(outDir, 'THIRD_PARTY_LICENSES.txt'))
 
 console.log('Extension built → dist-extension/  (chrome://extensions → Developer mode → Load unpacked)')

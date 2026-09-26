@@ -26,7 +26,13 @@ export const PALETTE: Record<string, string> = {
   W: '#eeeaf6',
 }
 
-export type SpriteFrame = { rows: string[]; dx: number; dy: number }
+export type SpriteFrame = {
+  rows: string[]
+  dx: number
+  dy: number
+  /** top-centre and width of the head, when the frame's builder knows it (see cosmetics.headOf) */
+  head?: { x: number; y: number; w: number }
+}
 
 /** Parse ascii art with an offset (in sprite px) into a frame. */
 const f = (dx: number, dy: number, art: string): SpriteFrame => ({

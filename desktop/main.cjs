@@ -7,9 +7,11 @@
 // up under the taskbar or off-screen. The window around it adds a shadow margin (PAD)
 // plus a strip for the hover toolbar (BAR), which goes above the button, or below it
 // when the button is near the top of the screen.
-const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen } = require('electron')
+const { app, BrowserWindow, Menu, Tray, ipcMain, nativeImage, screen, shell } = require('electron')
 const path = require('node:path')
 const fs = require('node:fs')
+const http = require('node:http')
+const crypto = require('node:crypto')
 
 const DIST = path.join(__dirname, '..', 'dist-desktop')
 const ASSETS = path.join(__dirname, 'assets')
@@ -26,8 +28,29 @@ const ANIMS = [
   ['code', 'Code Mode'],
   ['dance', 'Dance Party'],
   ['sleep', 'Sleepy'],
+  ['think', 'Thinking'],
+  ['ship', 'Ship It'],
+  ['squash', 'Bug Squash'],
+  ['levelup', 'Level Up'],
   ['random', 'Random'],
 ]
+// Seasonal ones join the Animation menu in season ([from month, day, to month, day], as
+// `season` in src/engine/animations/*.ts); --play takes them any time.
+const SEASONAL = [
+  ['spooky', 'Spooky', [10, 1, 11, 1]],
+  ['snow', 'Snow Day', [12, 1, 1, 7]],
+]
+function inSeason([m1, d1, m2, d2], d = new Date()) {
+  const day = (d.getMonth() + 1) * 100 + d.getDate()
+  const from = m1 * 100 + d1
+  const to = m2 * 100 + d2
+  return from <= to ? day >= from && day <= to : day >= from || day <= to
+}
+/** the Animation menu: the regulars, whatever is in season (or already picked), then Random */
+function menuAnims(current) {
+  const extra = SEASONAL.filter(([id, , season]) => id === current || inSeason(season)).map(([id, name]) => [id, name])
+  return [...ANIMS.slice(0, -1), ...extra, ANIMS[ANIMS.length - 1]]
+}
 const SIZES = [
   ['S', 240],
   ['M', 340],
@@ -35,17 +58,48 @@ const SIZES = [
   ['XL', 676],
 ]
 
+const STATES = ['working', 'waiting', 'done', 'idle']
+
+// ───────────────────────── command line ─────────────────────────
+// "Clawd Widget.exe --play jump" or "--state working|waiting|done|idle" (also --play=jump).
+// Starting it while it's already running hands the command to the running widget.
+/** @returns {{ play?: string, state?: string }} */
+function parseCli(argv) {
+  const out = {}
+  const value = (name) => {
+    const i = argv.findIndex((a) => a === `--${name}` || a.startsWith(`--${name}=`))
+    if (i < 0) return undefined
+    const a = argv[i]
+    return (a.includes('=') ? a.slice(a.indexOf('=') + 1) : argv[i + 1] || '').toLowerCase()
+  }
+  const play = value('play')
+  if (play !== undefined) {
+    const known = [...ANIMS, ...SEASONAL].map(([id]) => id)
+    if (known.includes(play)) out.play = play
+    else console.error(`unknown animation "${play}"; use one of: ${known.join(', ')}`)
+  }
+  const st = value('state')
+  if (st !== undefined) {
+    if (STATES.includes(st)) out.state = st
+    else console.error(`unknown state "${st}"; use one of: ${STATES.join(', ')}`)
+  }
+  return out
+}
+const cli = parseCli(process.argv)
+
 // CLAWD_USER_DATA=<dir> runs an isolated instance (own settings + single-instance lock), for testing
 if (process.env.CLAWD_USER_DATA) app.setPath('userData', process.env.CLAWD_USER_DATA)
 
-if (!app.requestSingleInstanceLock()) {
+// The running instance gets our parsed command as additionalData: Chromium may reorder or
+// add switches in the argv it forwards.
+if (!app.requestSingleInstanceLock({ cli })) {
   app.quit()
   process.exit(0)
 }
 
 // ───────────────────────── persisted state ─────────────────────────
 const statePath = () => path.join(app.getPath('userData'), 'clawd-widget.json')
-let state = { settings: {}, btn: null, onTop: true }
+let state = { settings: {}, btn: null, onTop: true, control: false, stats: {} }
 
 function loadState() {
   try {
@@ -177,19 +231,55 @@ function createWidget() {
     backgroundColor: '#00000000',
     title: 'Clawd Widget',
     icon: path.join(ASSETS, 'icon.png'),
-    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true },
+    // sounds can play when a script (e.g. a Claude Code hook) starts an animation, with no click
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, sandbox: true, autoplayPolicy: 'no-user-gesture-required' },
   })
   if (state.onTop) widget.setAlwaysOnTop(true, 'floating')
   widget.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false })
   logRenderer(widget, 'widget')
   void widget.loadFile(path.join(DIST, 'widget.html'))
-  widget.webContents.on('did-finish-load', () => widget?.webContents.send('layout', layout))
+  widget.webContents.on('did-finish-load', () => {
+    widget?.webContents.send('layout', layout)
+    // a command given when the app was started (e.g. --play jump)
+    if (pendingCli) runCli(pendingCli)
+    pendingCli = null
+  })
   widget.on('blur', endDrag)
+  widget.on('show', watchCursor)
+  widget.on('hide', watchCursor)
   widget.on('closed', () => {
     endDrag()
     widget = null
+    watchCursor()
   })
   state.btn = btn
+  watchCursor()
+}
+
+// ───────────────────────── cursor ─────────────────────────
+// The widget page only sees the mouse while it's over the window. While "Eyes follow
+// cursor" is on, send it the global position (in window coordinates) so Clawd can watch
+// the mouse anywhere on screen. Only changes are sent.
+let cursorTimer = null
+let lastCursor = null
+
+function watchCursor() {
+  const want = !!widget && widget.isVisible() && state.settings.eyesFollow !== false
+  if (want && !cursorTimer) cursorTimer = setInterval(sendCursor, 50)
+  if (!want && cursorTimer) {
+    clearInterval(cursorTimer)
+    cursorTimer = null
+    lastCursor = null
+  }
+}
+
+function sendCursor() {
+  if (!widget) return
+  const p = screen.getCursorScreenPoint()
+  if (lastCursor && p.x === lastCursor.x && p.y === lastCursor.y) return
+  lastCursor = p
+  const b = widget.getContentBounds()
+  widget.webContents.send('cursor', p.x - b.x, p.y - b.y)
 }
 
 function openSettings() {
@@ -241,10 +331,90 @@ function setSettings(next) {
   }
   broadcast()
   rebuildTray()
+  watchCursor()
 }
 
 const patchSettings = (patch) => setSettings({ ...state.settings, ...patch })
 const command = (cmd, arg) => widget?.webContents.send('command', cmd, arg)
+
+let pendingCli = cli.play || cli.state ? cli : null
+
+/** Run a command-line / endpoint command. --play also brings a hidden widget back; --state doesn't. */
+function runCli(c) {
+  if (c.play) {
+    if (!widget || !widget.isVisible()) toggleWidget(true)
+    command('play', c.play)
+  }
+  if (c.state) command('state', c.state)
+}
+
+// ───────────────────────── local control endpoint ─────────────────────────
+// Off by default. When on, scripts (e.g. Claude Code hooks) can drive the widget with curl
+// instead of starting the app each time:
+//   curl -X POST -H "Authorization: Bearer <token>" http://127.0.0.1:47823/state/working
+// It listens on 127.0.0.1 only and needs the token from the control-token file in the
+// app's data folder, created on first use and readable only by you.
+const CONTROL_PORT = Number(process.env.CLAWD_PORT) || 47823
+const tokenPath = () => path.join(app.getPath('userData'), 'control-token')
+let controlServer = null
+
+function controlToken() {
+  try {
+    const t = fs.readFileSync(tokenPath(), 'utf8').trim()
+    if (/^[0-9a-f]{48}$/.test(t)) return t
+  } catch {
+    /* not made yet */
+  }
+  const t = crypto.randomBytes(24).toString('hex')
+  fs.mkdirSync(path.dirname(tokenPath()), { recursive: true })
+  fs.writeFileSync(tokenPath(), t + '\n', { mode: 0o600 })
+  return t
+}
+
+function handleControl(req, res, token) {
+  req.resume() // no request body is used
+  const send = (code, msg = '') => {
+    res.writeHead(code, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' })
+    res.end(msg ? msg + '\n' : '')
+  }
+  // only this machine, by name (guards against DNS rebinding) and with the token
+  const host = String(req.headers.host || '')
+  if (host !== `127.0.0.1:${CONTROL_PORT}` && host !== `localhost:${CONTROL_PORT}`) return send(403, 'forbidden')
+  const got = Buffer.from(String(req.headers.authorization || ''))
+  const want = Buffer.from(`Bearer ${token}`)
+  if (got.length !== want.length || !crypto.timingSafeEqual(got, want)) return send(401, 'missing or wrong token')
+  if (req.method !== 'POST') return send(405, 'use POST')
+  const [, kind, arg = ''] = (req.url || '').split('?')[0].split('/')
+  const c = kind === 'play' ? parseCli(['--play', arg]) : kind === 'state' ? parseCli(['--state', arg]) : null
+  if (!c) return send(404, 'use /play/<animation> or /state/<working|waiting|done|idle>')
+  if (!c.play && !c.state) return send(400, 'unknown animation or state')
+  runCli(c)
+  send(204)
+}
+
+function setControl(on) {
+  state.control = on
+  saveState()
+  if (on && !controlServer) {
+    let token
+    try {
+      token = controlToken()
+    } catch (e) {
+      console.error('could not create the control token', e)
+      return
+    }
+    controlServer = http.createServer((req, res) => handleControl(req, res, token))
+    controlServer.on('error', (e) => {
+      console.error(`control endpoint: ${e.message}`)
+      controlServer = null
+    })
+    controlServer.listen(CONTROL_PORT, '127.0.0.1', () => trace('control endpoint on', CONTROL_PORT))
+  } else if (!on && controlServer) {
+    controlServer.close()
+    controlServer = null
+  }
+  rebuildTray()
+}
 
 // ───────────────────────── menus ─────────────────────────
 function menuTemplate() {
@@ -256,9 +426,10 @@ function menuTemplate() {
     { type: 'separator' },
     {
       label: 'Animation',
-      submenu: ANIMS.map(([id, name]) => ({ label: name, type: 'radio', checked: current === id, click: () => patchSettings({ animation: id }) })),
+      submenu: menuAnims(current).map(([id, name]) => ({ label: name, type: 'radio', checked: current === id, click: () => patchSettings({ animation: id }) })),
     },
     { label: 'Loop after click', type: 'checkbox', checked: s.playMode === 'loop', click: (i) => patchSettings({ playMode: i.checked ? 'loop' : 'once' }) },
+    { label: 'Sound effects', type: 'checkbox', checked: !!s.sound, click: (i) => patchSettings({ sound: i.checked }) },
     {
       label: 'Size',
       submenu: SIZES.map(([name, v]) => ({ label: name, type: 'radio', checked: size() === v, click: () => patchSettings({ size: v }) })),
@@ -283,6 +454,13 @@ function menuTemplate() {
       click: (i) => app.setLoginItemSettings({ openAtLogin: i.checked }),
     },
     { label: widget?.isVisible() === false ? 'Show widget' : 'Hide widget', click: () => toggleWidget() },
+    {
+      label: 'Control from scripts',
+      submenu: [
+        { label: `Local endpoint on 127.0.0.1:${CONTROL_PORT}`, type: 'checkbox', checked: !!state.control, click: (i) => setControl(i.checked) },
+        { label: 'Show token file', enabled: !!state.control, click: () => shell.showItemInFolder(tokenPath()) },
+      ],
+    },
     {
       label: 'Reset position',
       click: () => {
@@ -317,6 +495,13 @@ function endDrag() {
 
 ipcMain.handle('settings:get', () => state.settings)
 ipcMain.handle('settings:set', (_e, s) => setSettings(s))
+ipcMain.handle('stats:get', () => state.stats)
+ipcMain.handle('stats:set', (e, s) => {
+  state.stats = s && typeof s === 'object' ? s : {}
+  saveState()
+  // the other windows (the settings window's achievements) follow along
+  for (const w of BrowserWindow.getAllWindows()) if (w.webContents !== e.sender) w.webContents.send('stats', state.stats)
+})
 ipcMain.handle('layout:get', () => layout)
 ipcMain.on('drag:start', () => {
   if (!widget || drag) return
@@ -349,7 +534,12 @@ ipcMain.on('menu', (_e, x, y) => {
 })
 
 // ───────────────────────── lifecycle ─────────────────────────
-app.on('second-instance', () => toggleWidget(true))
+// Started again: run its command (e.g. --state working), or just bring the widget back.
+app.on('second-instance', (_e, argv, _cwd, data) => {
+  const c = data && data.cli ? data.cli : parseCli(argv)
+  if (c.play || c.state) runCli(c)
+  else toggleWidget(true)
+})
 
 // monitors plugged/unplugged, resolution or taskbar changes: pull the button back into view
 const refit = () => widget && state.btn && placeBtn(state.btn, true)
@@ -369,6 +559,7 @@ app.whenReady().then(() => {
   tray.setToolTip('Clawd Widget')
   tray.on('click', () => toggleWidget())
   rebuildTray()
+  if (state.control) setControl(true)
   if (process.env.CLAWD_DEBUG) {
     openSettings()
     setTimeout(async () => {

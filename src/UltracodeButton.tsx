@@ -68,7 +68,7 @@ export function UltracodeButton({
       ref={host}
       className={className}
       style={{ display: 'inline-block', lineHeight: 0 }}
-      onClick={() => playOnClick && time === undefined && btn.current?.play()}
+      onClick={(e) => playOnClick && time === undefined && btn.current?.click(e.clientX, e.clientY)}
       onKeyDown={(e) => {
         if (playOnClick && time === undefined && (e.key === 'Enter' || e.key === ' ')) {
           e.preventDefault()

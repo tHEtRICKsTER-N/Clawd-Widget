@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { ACHIEVEMENTS, emptyStats, normalizeStats, type Stats } from '../core/achievements'
+import { canExportWebm, exportGif, exportSheet, exportWebm, type ExportFormat } from '../core/export'
+import { overlayUrl } from '../core/overlay'
 import type { ClawdButton } from '../core/renderer'
-import { DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, type Colors, type Settings } from '../core/settings'
-import type { SettingsStore } from '../core/store'
-import { ANIM_LIST } from '../engine/animations'
+import { DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, parseThemeCode, themeCode, type Colors, type Settings } from '../core/settings'
+import type { SettingsStore, StatsStore } from '../core/store'
+import { ANIMATIONS, ANIM_LIST, SEASONAL, offered } from '../engine/animations'
+import { COSMETICS, type CosmeticId } from '../engine/cosmetics'
+import type { AnimId } from '../engine/types'
 import { UltracodeButton } from '../UltracodeButton'
 import './settings.css'
 
@@ -15,6 +20,8 @@ export interface SettingsPanelProps {
   currentSite?: string
   /** extra host-specific controls rendered at the end */
   extra?: ReactNode
+  /** achievement stats of this host's widget; without it there's no Achievements card */
+  stats?: StatsStore
 }
 
 const COLOR_FIELDS: { key: keyof Colors; label: string; group: 'button' | 'bot' | 'effects' }[] = [
@@ -27,8 +34,297 @@ const COLOR_FIELDS: { key: keyof Colors; label: string; group: 'button' | 'bot' 
   { key: 'particles', label: 'Notes & sparks', group: 'effects' },
 ]
 
-export function SettingsPanel({ store, host, compact, currentSite, extra }: SettingsPanelProps) {
+/** What's been achieved, and the wardrobe it unlocked. */
+function Achievements({ store, wearing, onWear }: { store: StatsStore; wearing: Settings['cosmetic']; onWear: (c: Settings['cosmetic']) => void }) {
+  const [st, setSt] = useState<Stats>(emptyStats)
+  useEffect(() => {
+    let alive = true
+    void store.load().then((v) => alive && setSt(normalizeStats(v)))
+    const off = store.subscribe((v) => setSt(normalizeStats(v)))
+    return () => {
+      alive = false
+      off()
+    }
+  }, [store])
+  const done = ACHIEVEMENTS.filter((a) => st.unlocked[a.id])
+  const owned = new Set<CosmeticId>(done.flatMap((a) => (a.reward ? [a.reward] : [])))
+  return (
+    <section className="sp-card">
+      <h3>
+        Achievements <span className="sp-count">{done.length} / {ACHIEVEMENTS.length}</span>
+      </h3>
+      <ul className="sp-achs">
+        {ACHIEVEMENTS.map((a) => {
+          const reward = COSMETICS.find((c) => c.id === a.reward)
+          const at = st.unlocked[a.id]
+          return (
+            <li key={a.id} className={at ? 'on' : ''} title={at ? `Unlocked ${new Date(at).toLocaleDateString()}` : 'Not yet'}>
+              <span className="sp-ach-star" aria-hidden="true">
+                {at ? '★' : '☆'}
+              </span>
+              <span className="sp-ach-text">
+                <b>{a.name}</b>
+                <small>
+                  {a.hint}
+                  {reward && ` · unlocks ${reward.icon} ${reward.name}`}
+                </small>
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      {st.bugJumpBest > 0 && <div className="sp-sub">Bug Jump high score: {st.bugJumpBest}</div>}
+      <div className="sp-sub">Wear</div>
+      <div className="sp-wear" role="radiogroup" aria-label="What Clawd wears">
+        <button role="radio" aria-checked={wearing === 'none'} className={wearing === 'none' ? 'on' : ''} onClick={() => onWear('none')}>
+          Nothing
+        </button>
+        {COSMETICS.map((c) => {
+          const has = owned.has(c.id) || wearing === c.id
+          const how = ACHIEVEMENTS.find((a) => a.reward === c.id)
+          return (
+            <button
+              key={c.id}
+              role="radio"
+              aria-checked={wearing === c.id}
+              className={wearing === c.id ? 'on' : ''}
+              disabled={!has}
+              title={has ? c.name : `Unlocked by “${how?.name}”`}
+              onClick={() => onWear(c.id)}
+            >
+              <span aria-hidden="true">{has ? c.icon : '🔒'}</span> {c.name}
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+/** Save any animation, in the current look, as a GIF, a WebM video or a PNG sprite sheet. */
+function Exporter({ s }: { s: Settings }) {
+  const [anim, setAnim] = useState<AnimId>(s.animation === 'random' ? 'guitar' : s.animation)
+  const [format, setFormat] = useState<ExportFormat>('gif')
+  const [width, setWidth] = useState(s.size)
+  const [fps, setFps] = useState(25)
+  const [loop, setLoop] = useState(true)
+  const [busy, setBusy] = useState<number | null>(null)
+  const [note, setNote] = useState('')
+  const webmOk = canExportWebm()
+  const go = async () => {
+    setBusy(0)
+    setNote('')
+    const o = { anim, width, fps, loop }
+    const name = `clawd-${anim}${loop ? '-loop' : ''}-${width}px-${fps}fps`
+    try {
+      let blob: Blob
+      let file: string
+      if (format === 'gif') [blob, file] = [await exportGif(s, o, setBusy), `${name}.gif`]
+      else if (format === 'webm') [blob, file] = [await exportWebm(s, o, setBusy), `${name}.webm`]
+      else {
+        const r = await exportSheet(s, o, setBusy)
+        blob = r.blob
+        file = `${name}-${r.frames}f-${r.cols}cols.png`
+      }
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = file
+      a.click()
+      window.setTimeout(() => URL.revokeObjectURL(a.href), 60_000)
+      setNote(`Saved ${file} (${(blob.size / 1024).toFixed(0)} KB)`)
+    } catch (e) {
+      setNote(`Couldn't export: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <section className="sp-card">
+      <h3>Export</h3>
+      <div className="sp-grid2">
+        <label className="sp-field">
+          <span>Animation</span>
+          <select value={anim} onChange={(e) => setAnim(e.target.value as AnimId)}>
+            {[...ANIM_LIST, ...SEASONAL].map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.icon} {a.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="sp-field">
+          <span>Frames per second</span>
+          <select value={fps} onChange={(e) => setFps(Number(e.target.value))}>
+            {[12, 20, 25, 30, 50].map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="sp-row">
+        <div className="sp-seg" role="radiogroup" aria-label="Format">
+          {(
+            [
+              ['gif', 'GIF'],
+              ['webm', 'WebM'],
+              ['sheet', 'Sprite sheet'],
+            ] as const
+          ).map(([f, label]) => (
+            <button key={f} role="radio" aria-checked={format === f} className={format === f ? 'on' : ''} disabled={f === 'webm' && !webmOk} onClick={() => setFormat(f)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="sp-seg" role="radiogroup" aria-label="Export size">
+          {SIZES.map((z) => (
+            <button key={z.value} role="radio" aria-checked={width === z.value} className={width === z.value ? 'on' : ''} onClick={() => setWidth(z.value)}>
+              {z.label}
+            </button>
+          ))}
+        </div>
+        <label className="sp-check" title="Just the looping part, so it repeats without a jump (otherwise one play from the start)">
+          <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
+          Seamless loop
+        </label>
+      </div>
+      <div className="sp-row">
+        <button className="sp-btn primary" disabled={busy !== null} onClick={() => void go()}>
+          {busy === null ? '⤓ Export' : `Rendering… ${Math.round(busy * 100)}%`}
+        </button>
+        <span className="sp-hint">{note || `${width} × ${Math.round((width * 104) / 676)} px, in your current colours, font and label`}</span>
+      </div>
+      {!webmOk && <span className="sp-hint">WebM needs a browser with a video encoder (Chrome, Edge).</span>}
+    </section>
+  )
+}
+
+/** A URL for an OBS Browser Source: this button, transparent background, playing on its own. */
+function ObsOverlay({ s }: { s: Settings }) {
+  const [play, setPlay] = useState(true)
+  const [loop, setLoop] = useState(false)
+  const [every, setEvery] = useState(0)
+  const [copied, setCopied] = useState(false)
+  const base = new URL('overlay.html', location.href).href.split('?')[0]
+  const url = overlayUrl(base, s, { play, loop, every })
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* the field can be copied by hand */
+    }
+  }
+  return (
+    <section className="sp-card">
+      <h3>OBS overlay</h3>
+      <div className="sp-row">
+        <label className="sp-check">
+          <input type="checkbox" checked={play} onChange={(e) => setPlay(e.target.checked)} />
+          Play when it loads
+        </label>
+        <label className="sp-check">
+          <input type="checkbox" checked={loop} onChange={(e) => setLoop(e.target.checked)} />
+          Loop
+        </label>
+        <label className="sp-check">
+          Play again every
+          <select value={every} onChange={(e) => setEvery(Number(e.target.value))}>
+            {[0, 30, 60, 120, 300, 600].map((n) => (
+              <option key={n} value={n}>
+                {n ? `${n / 60 >= 1 ? `${n / 60} min` : `${n} s`}` : 'never'}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="sp-share-row">
+        <input className="sp-code" readOnly value={url} onFocus={(e) => e.target.select()} aria-label="Overlay URL" />
+        <button className="sp-btn" onClick={() => void copy()}>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+        <a className="sp-btn" href={url} target="_blank" rel="noreferrer">
+          Open
+        </a>
+      </div>
+      <span className="sp-hint">
+        In OBS: Sources → + → Browser, paste the URL, set the width to at least {s.size + 16} px. The background stays transparent. Uses your current look.
+      </span>
+    </section>
+  )
+}
+
+/** The theme as a short code to copy, and a field to paste someone else's. */
+function ShareCode({ s, onApply }: { s: Settings; onApply: (t: { colors: Colors; crt: boolean }) => void }) {
+  const code = themeCode(s)
+  const mine = useRef<HTMLInputElement>(null)
+  const [copied, setCopied] = useState(false)
+  const [paste, setPaste] = useState('')
+  const theirs = paste.trim() ? parseThemeCode(paste) : null
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // no clipboard access here: select it for a manual copy
+      mine.current?.select()
+    }
+  }
+  return (
+    <div className="sp-share">
+      <div className="sp-sub">Share code</div>
+      <div className="sp-share-row">
+        <input ref={mine} className="sp-code" readOnly value={code} onFocus={(e) => e.target.select()} aria-label="Share code for this theme" />
+        <button className="sp-btn" onClick={() => void copy()}>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <div className="sp-share-row">
+        <input className="sp-code" value={paste} placeholder="Paste a code to use its theme" onChange={(e) => setPaste(e.target.value)} aria-label="Paste a share code" />
+        <button
+          className="sp-btn"
+          disabled={!theirs}
+          onClick={() => {
+            if (!theirs) return
+            onApply(theirs)
+            setPaste('')
+          }}
+        >
+          Use
+        </button>
+      </div>
+      {paste.trim() && !theirs && <span className="sp-hint">That isn't a Clawd theme code.</span>}
+    </div>
+  )
+}
+
+/** Whether the system asks for reduced motion (the button then tones itself down). */
+/** the picker: what's on offer today, plus the current pick if it's a seasonal one out of season */
+function pickable(current: Settings['animation']) {
+  const list = offered()
+  const picked = current === 'random' ? null : ANIMATIONS[current]
+  return picked && !list.includes(picked) ? [...list, picked] : list
+}
+
+function useReducedMotion() {
+  const query = '(prefers-reduced-motion: reduce)'
+  const [on, setOn] = useState(() => typeof matchMedia === 'function' && matchMedia(query).matches)
+  useEffect(() => {
+    if (typeof matchMedia !== 'function') return
+    const m = matchMedia(query)
+    const f = () => setOn(m.matches)
+    m.addEventListener('change', f)
+    return () => m.removeEventListener('change', f)
+  }, [])
+  return on
+}
+
+export function SettingsPanel({ store, host, compact, currentSite, extra, stats }: SettingsPanelProps) {
   const [s, setS] = useState<Settings | null>(null)
+  const reducedMotion = useReducedMotion()
   const btn = useRef<ClawdButton | null>(null)
   const saveTimer = useRef<number>(0)
   const pending = useRef<Settings | null>(null)
@@ -68,6 +364,11 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
       if (v) void store.save(v)
     }, 350)
   }
+  // sound needs a click to start in browsers: every play button here counts
+  const playPreview = (id?: Parameters<ClawdButton['play']>[0]) => {
+    btn.current?.unlockSound()
+    btn.current?.play(id)
+  }
   const setColor = (key: keyof Colors, v: string) => update({ colors: { ...s.colors, [key]: v } })
   const presetId = PRESETS.find((p) => (Object.keys(p.colors) as (keyof Colors)[]).every((k) => p.colors[k] === s.colors[k]))?.id
   const previewWidth = compact ? 340 : Math.min(466, s.size < 300 ? 340 : 466)
@@ -78,13 +379,13 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
       <section className="sp-preview">
         <UltracodeButton settings={s} width={previewWidth} onReady={(b) => (btn.current = b)} />
         <div className="sp-row">
-          <button className="sp-btn primary" onClick={() => btn.current?.play()}>
+          <button className="sp-btn primary" onClick={() => playPreview()}>
             ▶ Play
           </button>
-          <button className="sp-btn" onClick={() => btn.current?.play('random')}>
+          <button className="sp-btn" onClick={() => playPreview('random')}>
             🎲 Random
           </button>
-          <span className="sp-hint">Click the button to play it</span>
+          <span className="sp-hint">{s.pokes ? 'Click the button to play it, or poke Clawd' : 'Click the button to play it'}</span>
         </div>
       </section>
 
@@ -139,7 +440,7 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
       <section className="sp-card">
         <h3>Animation</h3>
         <div className="sp-anims" role="radiogroup" aria-label="Animation">
-          {ANIM_LIST.map((a) => (
+          {pickable(s.animation).map((a) => (
             <button
               key={a.id}
               role="radio"
@@ -148,7 +449,7 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
               title={a.description}
               onClick={() => {
                 update({ animation: a.id })
-                btn.current?.play(a.id)
+                playPreview(a.id)
               }}
             >
               <span className="sp-anim-icon">{a.icon}</span>
@@ -162,7 +463,7 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             title="A different animation on every click"
             onClick={() => {
               update({ animation: 'random' })
-              btn.current?.play('random')
+              playPreview('random')
             }}
           >
             <span className="sp-anim-icon">🎲</span>
@@ -178,29 +479,103 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
               Loop
             </button>
           </div>
-          <label className="sp-check">
-            <input type="checkbox" checked={s.idleBlink} onChange={(e) => update({ idleBlink: e.target.checked })} />
-            Blink when idle
-          </label>
           <label className="sp-check" title="Guitar Jam starts with the dark 'pressed' flash from the original">
             <input type="checkbox" checked={s.pressFlash} onChange={(e) => update({ pressFlash: e.target.checked })} />
             Tap flash
           </label>
         </div>
+        {reducedMotion && (
+          <p className="sp-hint">
+            Your system asks for reduced motion, so the grid flashes at most 3 times a second and less brightly, the tap flash is skipped and
+            Clawd's eyes move calmly.
+          </p>
+        )}
+      </section>
+
+      <section className="sp-card">
+        <h3>Between plays</h3>
+        <div className="sp-row">
+          <label className="sp-check">
+            <input type="checkbox" checked={s.idleBlink} onChange={(e) => update({ idleBlink: e.target.checked })} />
+            Blink when idle
+          </label>
+          <label className="sp-check" title={host === 'desktop' ? 'Clawd watches the mouse anywhere on screen while resting' : 'Clawd watches the pointer while resting'}>
+            <input type="checkbox" checked={s.eyesFollow} onChange={(e) => update({ eyesFollow: e.target.checked })} />
+            Eyes follow cursor
+          </label>
+          <label className="sp-check" title="Clawd dangles while you drag the widget and lands with a thud">
+            <input type="checkbox" checked={s.dragReact} onChange={(e) => update({ dragReact: e.target.checked })} />
+            Dangle when dragged
+          </label>
+          <label className="sp-check" title="Clicking Clawd itself gets a squish and a heart instead of playing. Keep poking for a combo.">
+            <input type="checkbox" checked={s.pokes} onChange={(e) => update({ pokes: e.target.checked })} />
+            Poke Clawd
+          </label>
+          <label className="sp-check" title="Every few minutes Clawd stretches, yawns, scratches or wanders off. Left alone for a while, it dozes off, and wakes when the pointer comes near.">
+            <input type="checkbox" checked={s.idleAntics} onChange={(e) => update({ idleAntics: e.target.checked })} />
+            Idle antics
+          </label>
+        </div>
+      </section>
+
+      {stats && <Achievements store={stats} wearing={s.cosmetic} onWear={(c) => update({ cosmetic: c })} />}
+
+      {!compact && <Exporter s={s} />}
+
+      {host === 'web' && <ObsOverlay s={s} />}
+
+      <section className="sp-card">
+        <h3>Sound</h3>
+        <div className="sp-row">
+          <label className="sp-check">
+            <input
+              type="checkbox"
+              checked={s.sound}
+              onChange={(e) => {
+                update({ sound: e.target.checked })
+                if (e.target.checked) btn.current?.unlockSound(true)
+              }}
+            />
+            Sound effects
+          </label>
+          <label className="sp-range">
+            <span>Volume</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round(s.volume * 100)}
+              disabled={!s.sound}
+              onChange={(e) => update({ volume: Number(e.target.value) / 100 })}
+            />
+            <code>{Math.round(s.volume * 100)}%</code>
+          </label>
+        </div>
+        <p className="sp-hint">Chiptune blips made on the fly, in time with every pulse of the grid. Off until you turn it on.</p>
       </section>
 
       <section className="sp-card">
         <h3>Colors</h3>
-        <div className="sp-presets">
-          {PRESETS.map((p) => (
-            <button key={p.id} className={presetId === p.id ? 'sp-preset on' : 'sp-preset'} onClick={() => update({ colors: { ...p.colors } })} title={p.name}>
-              <span className="sw" style={{ background: `linear-gradient(90deg, ${p.colors.background} 0 50%, ${p.colors.glow} 50%)` }} />
-              <span className="dot" style={{ background: p.colors.bot }} />
-              <span className="dot" style={{ background: p.colors.particles }} />
-              <span className="nm">{p.name}</span>
-            </button>
-          ))}
-        </div>
+        {([undefined, 'games'] as const).map((group) => (
+          <div key={group ?? 'classic'} className="sp-preset-group">
+            <div className="sp-sub">{group ? 'Games & editors' : 'Classic'}</div>
+            <div className="sp-presets">
+              {PRESETS.filter((p) => p.group === group).map((p) => (
+                <button key={p.id} className={presetId === p.id ? 'sp-preset on' : 'sp-preset'} onClick={() => update({ colors: { ...p.colors } })} title={p.name}>
+                  <span className="sw" style={{ background: `linear-gradient(90deg, ${p.colors.background} 0 50%, ${p.colors.glow} 50%)` }} />
+                  <span className="dot" style={{ background: p.colors.bot }} />
+                  <span className="dot" style={{ background: p.colors.particles }} />
+                  <span className="nm">{p.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <label className="sp-check" title="Scanlines and a soft vignette, like an old CRT screen">
+          <input type="checkbox" checked={s.crt} onChange={(e) => update({ crt: e.target.checked })} />
+          CRT scanlines
+        </label>
         {(['button', 'bot', 'effects'] as const).map((grp) => (
           <div key={grp} className="sp-colors">
             <div className="sp-sub">{grp === 'button' ? 'Button' : grp === 'bot' ? 'Bot' : 'Effects'}</div>
@@ -213,6 +588,7 @@ export function SettingsPanel({ store, host, compact, currentSite, extra }: Sett
             ))}
           </div>
         ))}
+        <ShareCode s={s} onApply={(t) => update({ colors: t.colors, crt: t.crt })} />
       </section>
 
       <section className="sp-card">

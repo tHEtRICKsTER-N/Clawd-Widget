@@ -5,7 +5,7 @@
 
 import { jitter } from './rand'
 
-export type PulseKind = 'first' | 'strum' | 'power' | 'sway' | 'soft' | 'scan' | 'twinkle' | 'land'
+export type PulseKind = 'first' | 'strum' | 'power' | 'sway' | 'soft' | 'scan' | 'twinkle' | 'land' | 'trail'
 
 export interface Pulse {
   t0: number
@@ -66,6 +66,8 @@ const KINDS: Record<PulseKind, Partial<Base>> = {
   soft: { shape: 'disc', strength: 0.34, v: 16, q: 0, life: 1.7, floor: 1, band: 1, hollow: 0.2, glow: 1.6 },
   scan: { metric: 'horizontal', strength: 0.5, v: 62, q: 0, life: 0.95, floor: 0, band: 1.4, glow: 0.6 },
   twinkle: { shape: 'disc', strength: 0.62, r0: 0.55, v: 0, q: 0, life: 0.7, floor: 1, band: 1, glow: 0.4 },
+  // a faint single cell (Bug Jump: the glowing track a bug leaves behind)
+  trail: { shape: 'disc', strength: 0.3, r0: 0.55, v: 0, q: 0, life: 0.6, floor: 1, band: 1, glow: 0.3 },
 }
 
 /** Build a pulse with small seeded variation so repeats never look identical. */
@@ -104,4 +106,24 @@ export function scheduled(t: number, events: PulseEvent[], seedBase = 0, lookbac
     if (t0 <= t && t - t0 < lookback) out.push(makePulse(t0, kind, seedBase + i, over))
   })
   return out
+}
+
+/** strongest pulse under reduced motion */
+export const CALM_CAP = 0.4
+/** under reduced motion a pulse needs this much quiet before it (> 1/3 s: at most 3 flashes a second, WCAG 2.3.1) */
+export const CALM_GAP = 0.34
+
+/**
+ * Reduced motion: drop every pulse that starts less than CALM_GAP after another one, so a
+ * burst of rapid strums becomes its first strum and no more than 3 pulses start in any
+ * second, and cap how bright any pulse gets. The rule only looks CALM_GAP back, so it
+ * never changes its mind as old pulses expire. Twinkles light single cells, too small to
+ * count as flashes (and neither do trails), so they are neither dropped nor counted.
+ */
+export function calmPulses(list: Pulse[]): Pulse[] {
+  const small = (p: Pulse) => p.kind === 'twinkle' || p.kind === 'trail'
+  const starts = list.filter((p) => !small(p)).map((p) => p.t0)
+  return list
+    .filter((p) => small(p) || !starts.some((t0) => t0 < p.t0 && p.t0 - t0 < CALM_GAP))
+    .map((p) => (p.strength > CALM_CAP ? { ...p, strength: CALM_CAP } : p))
 }

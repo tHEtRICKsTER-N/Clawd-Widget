@@ -3,3 +3,8 @@ dist/
 dist-extension/
 dist-desktop/
 release/
+*.tsbuildinfo
+
+# release artifacts made locally
+*.tgz
+clawd-widget-extension-*.zip

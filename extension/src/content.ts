@@ -5,7 +5,7 @@
  */
 
 import type { Settings } from '../../src/core/settings'
-import { chromeStore } from '../../src/core/store'
+import { chromeStatsStore, chromeStore } from '../../src/core/store'
 import { DEFAULT_DOCK, FloatingWidget, type Dock } from '../../src/core/widget'
 import type { AnimId } from '../../src/engine/types'
 
@@ -44,6 +44,10 @@ function sync() {
       if (settings) void store.save({ ...settings, hiddenSites: [...settings.hiddenSites, site] })
     },
     closeLabel: `Hide on ${site} (bring it back from the toolbar icon)`,
+    onPatch: (p) => {
+      if (settings) void store.save({ ...settings, ...p })
+    },
+    stats: chromeStatsStore(),
   })
 }
 

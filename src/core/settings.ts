@@ -1,3 +1,4 @@
+import { COSMETICS, type CosmeticId } from '../engine/cosmetics'
 import type { AnimId } from '../engine/types'
 
 export interface Colors {
@@ -32,6 +33,22 @@ export interface Settings {
   /** start the button in the dark "pressed" state flash like the original */
   pressFlash: boolean
   idleBlink: boolean
+  /** while idle, Clawd's eyes follow the pointer (desktop: anywhere on screen) */
+  eyesFollow: boolean
+  /** Clawd dangles while the widget is dragged and lands with a thud */
+  dragReact: boolean
+  /** clicking Clawd itself pokes it (squish, heart, combo) instead of playing */
+  pokes: boolean
+  /** now and then Clawd stretches, yawns, scratches or wanders; left alone for a while, it dozes off */
+  idleAntics: boolean
+  /** chiptune sound effects in sync with the grid pulses (off by default) */
+  sound: boolean
+  /** sound volume, 0–1 */
+  volume: number
+  /** CRT scanlines and a soft vignette over the button */
+  crt: boolean
+  /** what Clawd wears (unlocked by achievements) */
+  cosmetic: CosmeticId | 'none'
   /** widget width in CSS px (height follows the 676×104 aspect) */
   size: number
   showToolbar: boolean
@@ -45,6 +62,8 @@ export interface ThemePreset {
   id: string
   name: string
   colors: Colors
+  /** 'games': palettes from consoles, fantasy consoles and editor themes */
+  group?: 'games'
 }
 
 export const PRESETS: ThemePreset[] = [
@@ -83,6 +102,55 @@ export const PRESETS: ThemePreset[] = [
     name: 'Mono',
     colors: { background: '#26262b', glow: '#4a4a55', text: '#ffffff', bot: '#e8e8e8', energy: '#ffffff', effectGlow: '#9a9aa8', particles: '#ffffff' },
   },
+  // palettes people know (console palettes, fantasy consoles and editor themes), from their published colours
+  {
+    id: 'dmg',
+    name: 'Game Boy DMG',
+    group: 'games',
+    colors: { background: '#306230', glow: '#8bac0f', text: '#9bbc0f', bot: '#0f380f', energy: '#9bbc0f', effectGlow: '#8bac0f', particles: '#9bbc0f' },
+  },
+  {
+    id: 'pico8',
+    name: 'PICO-8',
+    group: 'games',
+    colors: { background: '#1d2b53', glow: '#7e2553', text: '#fff1e8', bot: '#ffa300', energy: '#fff1e8', effectGlow: '#29adff', particles: '#ffec27' },
+  },
+  {
+    id: 'vboy',
+    name: 'Virtual Boy',
+    group: 'games',
+    colors: { background: '#2a0000', glow: '#550000', text: '#ff0000', bot: '#ff0000', energy: '#ff0000', effectGlow: '#aa0000', particles: '#ff0000' },
+  },
+  {
+    id: 'synthwave',
+    name: 'Synthwave',
+    group: 'games',
+    colors: { background: '#2b1055', glow: '#ff2a6d', text: '#05d9e8', bot: '#ff8a3d', energy: '#b3fbff', effectGlow: '#ff2a6d', particles: '#f9c80e' },
+  },
+  {
+    id: 'dracula',
+    name: 'Dracula',
+    group: 'games',
+    colors: { background: '#282a36', glow: '#6272a4', text: '#f8f8f2', bot: '#ffb86c', energy: '#f8f8f2', effectGlow: '#bd93f9', particles: '#ff79c6' },
+  },
+  {
+    id: 'catppuccin',
+    name: 'Catppuccin',
+    group: 'games',
+    colors: { background: '#1e1e2e', glow: '#45475a', text: '#cdd6f4', bot: '#fab387', energy: '#f5e0dc', effectGlow: '#cba6f7', particles: '#f9e2af' },
+  },
+  {
+    id: 'tokyonight',
+    name: 'Tokyo Night',
+    group: 'games',
+    colors: { background: '#1a1b26', glow: '#3d59a1', text: '#c0caf5', bot: '#ff9e64', energy: '#c0caf5', effectGlow: '#7aa2f7', particles: '#e0af68' },
+  },
+  {
+    id: 'nord',
+    name: 'Nord',
+    group: 'games',
+    colors: { background: '#2e3440', glow: '#4c566a', text: '#eceff4', bot: '#d08770', energy: '#eceff4', effectGlow: '#88c0d0', particles: '#ebcb8b' },
+  },
 ]
 
 export interface FontOption {
@@ -117,6 +185,14 @@ export const DEFAULT_SETTINGS: Settings = {
   playMode: 'once',
   pressFlash: true,
   idleBlink: true,
+  eyesFollow: true,
+  dragReact: true,
+  pokes: true,
+  idleAntics: true,
+  sound: false,
+  volume: 0.5,
+  crt: false,
+  cosmetic: 'none',
   size: 340,
   showToolbar: true,
   enabled: true,
@@ -144,7 +220,9 @@ export function normalize(raw: unknown): Settings {
     version: 1,
     text: typeof s.text === 'string' ? s.text.slice(0, 40) : DEFAULT_SETTINGS.text,
     size: Math.min(900, Math.max(160, Number(s.size) || DEFAULT_SETTINGS.size)),
+    volume: Number.isFinite(Number(s.volume)) ? Math.min(1, Math.max(0, Number(s.volume))) : DEFAULT_SETTINGS.volume,
     hiddenSites: Array.isArray(s.hiddenSites) ? s.hiddenSites.filter((x) => typeof x === 'string') : [],
+    cosmetic: COSMETICS.some((c) => c.id === s.cosmetic) ? (s.cosmetic as CosmeticId) : 'none',
     colors,
   }
 }
@@ -157,6 +235,42 @@ export function fontFamily(s: Settings): string {
 export function fontWeight(s: Settings): number {
   const f = FONTS.find((x) => x.id === s.font) ?? FONTS[0]
   return s.bold ? f.weights.bold : f.weights.regular
+}
+
+// ───────────────────────── share codes ─────────────────────────
+// A theme as one short string, e.g. "clawd:OiZfWDee__…": the seven colours (3 bytes each, in
+// COLOR_KEYS order) and a flags byte (1 = CRT), as base64url. Version it by the prefix.
+
+const CODE_PREFIX = 'clawd:'
+export const COLOR_KEYS: (keyof Colors)[] = ['background', 'glow', 'text', 'bot', 'energy', 'effectGlow', 'particles']
+
+export function themeCode(s: Pick<Settings, 'colors' | 'crt'>): string {
+  const bytes = new Uint8Array(COLOR_KEYS.length * 3 + 1)
+  COLOR_KEYS.forEach((k, i) => bytes.set(hexToRgb(s.colors[k]), i * 3))
+  bytes[bytes.length - 1] = s.crt ? 1 : 0
+  const b64 = btoa(String.fromCharCode(...bytes))
+  return CODE_PREFIX + b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+/** The theme in a share code, or null if it isn't one. */
+export function parseThemeCode(code: string): { colors: Colors; crt: boolean } | null {
+  const c = code.trim()
+  if (!c.toLowerCase().startsWith(CODE_PREFIX)) return null
+  const body = c.slice(CODE_PREFIX.length)
+  if (!/^[A-Za-z0-9_-]{30}$/.test(body)) return null
+  let raw: string
+  try {
+    raw = atob(body.replace(/-/g, '+').replace(/_/g, '/'))
+  } catch {
+    return null
+  }
+  if (raw.length !== COLOR_KEYS.length * 3 + 1) return null
+  const b = (i: number) => raw.charCodeAt(i)
+  const flags = b(raw.length - 1)
+  if (flags > 1) return null
+  const colors = {} as Colors
+  COLOR_KEYS.forEach((k, i) => (colors[k] = rgbToHex([b(i * 3), b(i * 3 + 1), b(i * 3 + 2)])))
+  return { colors, crt: flags === 1 }
 }
 
 // ───────────────────────── colour utils ─────────────────────────

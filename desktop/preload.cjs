@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('clawdDesktop', {
   onCommand: (cb) => on('command', cb),
   getLayout: () => ipcRenderer.invoke('layout:get'),
   onLayout: (cb) => on('layout', cb),
+  // global mouse position in window coordinates, so Clawd can watch it anywhere on screen
+  onCursor: (cb) => on('cursor', cb),
   // the main process follows the real cursor between these two calls
   dragStart: () => ipcRenderer.send('drag:start'),
   dragEnd: () => ipcRenderer.send('drag:end'),
@@ -21,4 +23,8 @@ contextBridge.exposeInMainWorld('clawdDesktop', {
   openSettings: () => ipcRenderer.send('open-settings'),
   showMenu: (x, y) => ipcRenderer.send('menu', x, y),
   hide: () => ipcRenderer.send('hide'),
+  // achievement stats, kept in the app's data file
+  getStats: () => ipcRenderer.invoke('stats:get'),
+  setStats: (s) => ipcRenderer.invoke('stats:set', s),
+  onStats: (cb) => on('stats', cb),
 })

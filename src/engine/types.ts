@@ -2,7 +2,7 @@ import type { Particle } from './particle'
 import type { Pulse } from './pulses'
 import type { SpriteFrame } from './sprites'
 
-export type AnimId = 'guitar' | 'hello' | 'jump' | 'code' | 'dance' | 'sleep'
+export type AnimId = 'guitar' | 'hello' | 'jump' | 'code' | 'dance' | 'sleep' | 'think' | 'ship' | 'squash' | 'levelup' | 'spooky' | 'snow' | 'konami'
 
 export interface Pose {
   frame: SpriteFrame | null
@@ -29,6 +29,8 @@ export interface AnimationDef {
   native?: boolean
   /** start with the dark "pressed" flash + purple settle of the reference */
   pressIntro?: boolean
+  /** seasonal: only offered from [month, day] to [month, day] (months 1–12; may wrap past New Year) */
+  season?: [fromMonth: number, fromDay: number, toMonth: number, toDay: number]
   pose(t: number): Pose
   pulses(t: number): Pulse[]
   particles(t: number): Particle[]
