@@ -49,6 +49,8 @@ const LABEL_RIGHT = 540
 const LABEL_SIZE = 30.5
 /** longest nap between frames while nothing changes (a safety net, e.g. for zoom changes) */
 const MAX_NAP = 5
+/** auto-play: seconds of rest between plays in non-stop mode */
+const NONSTOP_GAP = 1.2
 
 export interface RendererOptions {
   /** called when a single play finishes */
@@ -109,6 +111,9 @@ export class ClawdButton {
   private raf = 0
   /** timer while the loop naps until the next scheduled change */
   private nap = 0
+  /** a frame is being drawn; and whether something asked for another frame meanwhile */
+  private inTick = false
+  private wokenInTick = false
   /** longest dt the next frame may use: 0.1 s, or the nap's length after a nap */
   private maxDt = 0.1
   private last = 0
@@ -145,6 +150,11 @@ export class ClawdButton {
   private gameShown = { label: '', over: false }
   /** start Bug Jump once the current play ends (after the secret) */
   private gameAfterPlay = false
+  /** the widget is being dragged */
+  private dragging = false
+  /** auto-play: seconds of quiet so far, and how many this wait lasts */
+  private autoWait = 0
+  private autoGap = 0
   /** the system asks for reduced motion: calmer pulses, no tap flash, calmer eyes */
   private motion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
   private calm = !!this.motion?.matches
@@ -184,6 +194,7 @@ export class ClawdButton {
     this.fx = this.cFx.getContext('2d')!
     this.el = el
     parent.appendChild(el)
+    this.autoGap = this.nextGap()
     this.applySettings()
     window.addEventListener('pointermove', this.onPointerMove, { capture: true, passive: true })
     // keys only while the button itself has focus: never the host page's
@@ -199,6 +210,7 @@ export class ClawdButton {
   setSettings(s: Settings) {
     const prev = this.s
     this.s = s
+    if (s.autoPlay !== prev.autoPlay) this.quiet()
     this.applySettings(prev)
     this.wake()
   }
@@ -209,10 +221,12 @@ export class ClawdButton {
 
   /**
    * Play an animation (default: the one chosen in settings; 'random' picks a different one
-   * each time). `loop` overrides the settings' play-once / loop for this play.
+   * each time). `loop` overrides the settings' play-once / loop for this play; `auto`: an
+   * auto-play, which doesn't count towards achievements.
    */
-  play(id?: AnimId | 'random', opts: { loop?: boolean } = {}) {
+  play(id?: AnimId | 'random', opts: { loop?: boolean; auto?: boolean } = {}) {
     this.wake()
+    this.quiet()
     if (this.game) this.stopGame()
     this.gameAfterPlay = false
     this.playLoop = opts.loop ?? null
@@ -225,7 +239,7 @@ export class ClawdButton {
     this.linger = null
     this.life.reset()
     this.opts.onPlay?.(resolved)
-    this.opts.onEvent?.({ type: 'play', id: resolved, hour: new Date().getHours() })
+    if (!opts.auto) this.opts.onEvent?.({ type: 'play', id: resolved, hour: new Date().getHours() })
   }
 
   /**
@@ -234,6 +248,7 @@ export class ClawdButton {
    */
   click(x: number, y: number) {
     this.wake()
+    this.quiet()
     this.unlockSound()
     if (this.game) {
       this.game.jump()
@@ -319,6 +334,7 @@ export class ClawdButton {
   /** Return to the resting state. */
   stop() {
     this.wake()
+    this.quiet()
     if (this.mode === 'play' && this.anim) this.linger = { anim: this.anim, end: Math.min(this.playT, this.anim.duration), t: 0 }
     this.mode = 'idle'
   }
@@ -338,6 +354,8 @@ export class ClawdButton {
    */
   setDragging(on: boolean) {
     this.wake()
+    this.quiet()
+    this.dragging = on
     if (on) this.opts.onEvent?.({ type: 'drag' })
     if (!on) this.life.drag(false)
     else if (this.s.dragReact && this.mode === 'idle' && !this.controlled) this.life.drag(true)
@@ -527,7 +545,16 @@ export class ClawdButton {
     const dt = this.last ? Math.min(this.maxDt, (now - this.last) / 1000) : 0
     this.last = now
     this.maxDt = 0.1
-    this.schedule(this.step(now, dt))
+    this.inTick = true
+    this.wokenInTick = false
+    let rest = 0
+    try {
+      rest = this.step(now, dt)
+    } finally {
+      this.inTick = false
+    }
+    // something started during the frame (a play from onEnd, the game after the secret): no nap
+    this.schedule(this.wokenInTick ? 0 : rest)
   }
 
   /**
@@ -553,6 +580,11 @@ export class ClawdButton {
    * whatever the input starts is timed from now.
    */
   private wake() {
+    // mid-frame: the frame loop schedules the next one itself (a second rAF here would start a second loop)
+    if (this.inTick) {
+      this.wokenInTick = true
+      return
+    }
     if (!this.nap) {
       if (!this.raf) this.raf = requestAnimationFrame(this.tick)
       return
@@ -565,8 +597,27 @@ export class ClawdButton {
     this.maxDt = 0.1
     this.idleT += dt
     this.soundClock += dt
+    if (this.mode === 'idle' && this.autoReady()) this.autoWait += dt
     this.life.advance(dt)
     this.raf = requestAnimationFrame(this.tick)
+  }
+
+  /** Auto-play is on and may start something now: resting on a visible page, no game, drag or waiting. */
+  private autoReady(): boolean {
+    if (this.s.autoPlay <= 0 || this.controlled || this.game || this.gameAfterPlay || this.dragging || this.life.waiting) return false
+    return typeof document === 'undefined' || document.visibilityState !== 'hidden'
+  }
+
+  /** Something happened (a play, a click, a drag): the auto-play wait starts over. */
+  private quiet() {
+    this.autoWait = 0
+    this.autoGap = this.nextGap()
+  }
+
+  /** How long the next auto-play waits: about the chosen time, varied ±40% so it doesn't feel mechanical. */
+  private nextGap(): number {
+    const v = this.s.autoPlay
+    return v <= 1 ? NONSTOP_GAP : v * (0.6 + 0.8 * Math.random())
   }
 
   /** Advance and draw one frame; returns seconds until anything can change by itself (0: moving). */
@@ -624,6 +675,12 @@ export class ClawdButton {
       if (life.pulses.length) pulses = pulses.concat(life.pulses)
       // naps are timed in real seconds, so only at normal speed
       if (!this.linger && this.speed === 1) rest = life.rest
+      // auto-play: after a quiet spell, something at random (it starts on the next frame)
+      if (!this.controlled && this.autoReady()) {
+        this.autoWait += dt * this.speed
+        if (this.autoWait >= this.autoGap) this.play(pickRandom(this.lastAnimId), { loop: false, auto: true })
+        else rest = Math.min(rest, this.autoGap - this.autoWait)
+      }
     }
 
     // reduced motion: no tap flash, and pulses thinned to at most 3 a second and toned down

@@ -52,6 +52,7 @@ All are optional and can change at any time.
 | `blink` | on | `blink="off"`: no blinking or glancing around |
 | `pokes` | off | `pokes`: a click on Clawd itself pokes it (squish, heart, combos) instead of playing |
 | `flash` | on | `flash="off"`: no dark flash when a play starts |
+| `autoplay` | off | while resting, a random animation every ~so many seconds (`autoplay="60"`), or back to back (`autoplay="nonstop"`). The gap varies ±40% |
 
 A boolean attribute is on when present (`<clawd-button sound>`), and off with `="off"`, `="false"`, `="no"` or `="0"`.
 

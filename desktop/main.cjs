@@ -51,6 +51,17 @@ function menuAnims(current) {
   const extra = SEASONAL.filter(([id, , season]) => id === current || inSeason(season)).map(([id, name]) => [id, name])
   return [...ANIMS.slice(0, -1), ...extra, ANIMS[ANIMS.length - 1]]
 }
+// Auto-play: roughly every so many seconds (1: back to back), as AUTO_PLAY in src/core/settings.ts
+const AUTO_PLAY = [
+  [0, 'Off'],
+  [30, 'Every ~30 s'],
+  [60, 'Every ~1 min'],
+  [120, 'Every ~2 min'],
+  [300, 'Every ~5 min'],
+  [600, 'Every ~10 min'],
+  [1800, 'Every ~30 min'],
+  [1, 'Non-stop'],
+]
 const SIZES = [
   ['S', 240],
   ['M', 340],
@@ -429,6 +440,10 @@ function menuTemplate() {
       submenu: menuAnims(current).map(([id, name]) => ({ label: name, type: 'radio', checked: current === id, click: () => patchSettings({ animation: id }) })),
     },
     { label: 'Loop after click', type: 'checkbox', checked: s.playMode === 'loop', click: (i) => patchSettings({ playMode: i.checked ? 'loop' : 'once' }) },
+    {
+      label: 'Auto-play',
+      submenu: AUTO_PLAY.map(([v, name]) => ({ label: name, type: 'radio', checked: (s.autoPlay || 0) === v, click: () => patchSettings({ autoPlay: v }) })),
+    },
     { label: 'Sound effects', type: 'checkbox', checked: !!s.sound, click: (i) => patchSettings({ sound: i.checked }) },
     {
       label: 'Size',

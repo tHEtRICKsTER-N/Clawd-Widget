@@ -10,6 +10,7 @@
  *   state=working  a status (as in Claude Code hooks: working, waiting, done, idle)
  *   sound=1 volume=0–100   wear=crown   idle=0 (no antics)   eyes=0 (no cursor)   pad=8
  *   blink=0   pokes=0 (a click on Clawd plays too)   flash=0 (no tap flash)
+ *   autoplay=60|nonstop   while resting, a random animation every ~60 s, or back to back
  *
  * While it's open, changing the hash to #play=<id> or #state=<status> triggers those too.
  * The <clawd-button> element (src/wc) reads the same names from its attributes.
@@ -33,6 +34,14 @@ export interface Overlay {
 }
 
 const isAnim = (v: string | null): v is AnimId => !!v && v in ANIMATIONS
+/** "nonstop" (or a bare flag) → 1, a number of seconds → that, "off" / nonsense → 0; absent → the fallback */
+function autoPlayOf(v: string | null, fallback: number): number {
+  if (v === null) return fallback
+  const t = v.trim().toLowerCase()
+  if (t === '' || t === 'nonstop' || t === 'non-stop') return 1
+  const n = Number(t)
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
 /** absent: the fallback; present with no value (`?loop`, `<clawd-button sound>`): on; 0/false/no/off: off */
 const flag = (v: string | null, fallback: boolean) => (v === null ? fallback : !['0', 'false', 'no', 'off'].includes(v.trim().toLowerCase()))
 
@@ -63,6 +72,7 @@ export function settingsFrom(get: (name: string) => string | null, base: Setting
     idleBlink: flag(get('blink'), base.idleBlink),
     pokes: flag(get('pokes'), base.pokes),
     pressFlash: flag(get('flash'), base.pressFlash),
+    autoPlay: autoPlayOf(get('autoplay'), base.autoPlay),
     showToolbar: false,
   })
 }
@@ -99,6 +109,7 @@ export function overlayUrl(base: string, s: Settings, t: { play?: boolean; every
   if (s.cosmetic !== 'none') q.set('wear', s.cosmetic)
   if (s.idleAntics !== d.idleAntics) q.set('idle', s.idleAntics ? '1' : '0')
   if (s.eyesFollow !== d.eyesFollow) q.set('eyes', s.eyesFollow ? '1' : '0')
+  if (s.autoPlay > 0) q.set('autoplay', s.autoPlay <= 1 ? 'nonstop' : String(s.autoPlay))
   const qs = q.toString()
   return qs ? `${base}?${qs}` : base
 }

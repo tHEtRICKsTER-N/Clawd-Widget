@@ -4,6 +4,31 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-26 · 6.1 Auto-play while idle
+
+Setting `autoPlay`, in seconds: 0 is off (the default), 1 is non-stop, anything else is "roughly every". The UI offers ~30 s, 1, 2, 5, 10 and 30 min, and Non-stop.
+- **How it works:** while the button rests, the renderer counts quiet seconds. After a gap it plays a random animation from what's on offer that day (`pickRandom`: never the same twice in a row, seasonal ones only in season). The gap is the setting ±40%, so it doesn't feel mechanical, and Non-stop leaves 1.2 s between plays.
+- **What resets the wait:** any play, click, drag, status or stop.
+- **What pauses it:** Bug Jump (and the moment before it starts after the secret), dragging, the "waiting on you" badge, and a hidden page or widget (`document.visibilityState`). In the extension, that means only the tab you're looking at plays.
+- **Naps:** the frame loop still naps at rest; the nap just ends in time for the next auto-play.
+- **No achievement events:** auto-plays skip `onEvent`, so they can't unlock Collector or Night owl. `onPlay` still fires, so hosts and `clawd-play` listeners see them.
+- **Everywhere:** *Auto-play* in *Between plays* (all hosts' settings), an *Auto-play* submenu in the desktop right-click and tray menus, `autoplay=60|nonstop` for the OBS overlay, and `autoplay="60"|"nonstop"` on `<clawd-button>` (a bare `autoplay` means non-stop).
+
+**Fixed along the way: a second frame loop.** When something started a play or the game from inside a frame, the loop ran twice as often from then on. That happens with Bug Jump after the Konami code, and would with every auto-play. `wake()` asked for an animation frame, then the frame loop asked for another, and both kept going: measured at 120 ticks a second, even after the game ended. `destroy()` could only cancel one of them. Now `wake()` during a frame just notes it, and the frame loop skips its nap: 60 ticks a second before, during and after.
+
+Verified (Chromium, plus Electron under Xvfb):
+- **Timing:**
+  - Off by default: nothing plays.
+  - With a 2 s wait, the auto-play came about 2 s later, with the loop napping in between, and no achievement event was sent.
+  - 400 gaps for "~30 s" fell between 18 and 42 s.
+  - Non-stop played hello, code, guitar back to back in 16 s, with no repeats.
+- **Blocked cases:** nothing plays while hidden, waiting, dragging or in Bug Jump. The waiting case shows one play, which is the status's own wave. A click resets the wait.
+- **Playground:** picking Non-stop in the card saves `autoPlay: 1`, and the preview kept changing on its own for 8 s untouched.
+- **Parsing:** `autoplay` values (`nonstop`, bare, `60`, `off`, `0`, junk, absent) parse correctly. Overlay URLs round-trip. `normalize` gives old settings 0 and clamps bad values. The desktop menu's list matches the settings list.
+- **Desktop:** setting it through the desktop bridge reaches the widget, which then played Ship It, Level Up and Code Mode in 12 s.
+- **Frame loop:** 60 ticks a second before, during and after a game started mid-frame (120 after, before the fix).
+- `tsc` and `check:anims` (all 44 `same`) pass.
+
 ## 2026-09-26 · 6.2 More idle antics
 
 Four more of the rare moves between plays, alongside stretch, yawn, scratch and wander. They're chosen by the same scheduler, one every 90–240 s, never the same twice in a row, and only with *Idle antics* on. Each is a pure `Act` in `engine/antics.ts`:

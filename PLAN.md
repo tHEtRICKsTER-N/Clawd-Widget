@@ -87,7 +87,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 
 Ideas from the owner after 1.1.0: Clawd keeps itself busy when left alone.
 
-- [ ] **6.1 Auto-play while idle** (S/M)
+- [x] **6.1 Auto-play while idle** (S/M)
   Setting *Auto-play*: Off (default), roughly every 30 s / 1 / 2 / 5 / 10 / 30 min, or Non-stop. When idle, Clawd plays a random animation, with the gap varied so it doesn't feel mechanical. It waits while you're dragging, playing Bug Jump, being waited on ("!"), or when the page or widget is hidden. Auto-plays don't count toward achievements.
 - [x] **6.2 More idle antics** (S each)
   More of the rare micro-animations between plays (under *Idle antics*): a sneeze, a whistle with a floating note, a look-around with a hand over the eyes, a happy little hop.

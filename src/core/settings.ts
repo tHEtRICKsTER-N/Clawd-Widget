@@ -41,6 +41,8 @@ export interface Settings {
   pokes: boolean
   /** now and then Clawd stretches, yawns, scratches or wanders; left alone for a while, it dozes off */
   idleAntics: boolean
+  /** while idle, play a random animation every ~this many seconds (0: off, 1: non-stop) */
+  autoPlay: number
   /** chiptune sound effects in sync with the grid pulses (off by default) */
   sound: boolean
   /** sound volume, 0–1 */
@@ -189,6 +191,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dragReact: true,
   pokes: true,
   idleAntics: true,
+  autoPlay: 0,
   sound: false,
   volume: 0.5,
   crt: false,
@@ -223,9 +226,22 @@ export function normalize(raw: unknown): Settings {
     volume: Number.isFinite(Number(s.volume)) ? Math.min(1, Math.max(0, Number(s.volume))) : DEFAULT_SETTINGS.volume,
     hiddenSites: Array.isArray(s.hiddenSites) ? s.hiddenSites.filter((x) => typeof x === 'string') : [],
     cosmetic: COSMETICS.some((c) => c.id === s.cosmetic) ? (s.cosmetic as CosmeticId) : 'none',
+    autoPlay: Math.min(86400, Math.max(0, Number(s.autoPlay) || 0)),
     colors,
   }
 }
+
+/** Auto-play choices: roughly how often (seconds), 1 for back to back */
+export const AUTO_PLAY: { value: number; label: string }[] = [
+  { value: 0, label: 'Off' },
+  { value: 30, label: 'Every ~30 s' },
+  { value: 60, label: 'Every ~1 min' },
+  { value: 120, label: 'Every ~2 min' },
+  { value: 300, label: 'Every ~5 min' },
+  { value: 600, label: 'Every ~10 min' },
+  { value: 1800, label: 'Every ~30 min' },
+  { value: 1, label: 'Non-stop' },
+]
 
 export function fontFamily(s: Settings): string {
   if (s.font === 'custom') return s.customFont ? `'${s.customFont.replace(/'/g, '')}', system-ui, sans-serif` : 'system-ui, sans-serif'
