@@ -88,3 +88,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 - Clawd climbs out of the button and walks along the taskbar (classic desktop pet)
 - Dynamic label tokens: `{time}`, `{clicks}`, `{streak}`
 - Twitch chat triggers for streamers
+- **Android** (lowest priority: only once everything else is done). To decide then, from cheapest to most native:
+  - an installable web app (PWA) of the playground, which reuses everything as is;
+  - a floating overlay app ("chat head" style) that runs the same renderer in a WebView;
+  - a home-screen widget or live wallpaper, where Android's widget limits make smooth animation hard.
