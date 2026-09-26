@@ -4,6 +4,20 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-26 · 6.2 More idle antics
+
+Four more of the rare moves between plays, alongside stretch, yawn, scratch and wander. They're chosen by the same scheduler, one every 90–240 s, never the same twice in a row, and only with *Idle antics* on. Each is a pure `Act` in `engine/antics.ts`:
+- **Sneeze** (1.9 s): "ah…" (eyes shut, a little taller), "ah…!" (mouth open, arms up), CHOO: a crouch, a soft `land` thud, and a spray bursting out past both sides of the body. Then a dazed wide-eyed blink, and happy again.
+- **Whistle** (2.7 s): small mouth, looking up one way then the other, while three notes float up from its shoulder. Each note lights its grid cell with a twinkle, which is also a tone with sound on.
+- **Look around** (2.5 s): leans left with a hand up, then right, looks up, a "?" appears, and it shrugs.
+- **Hop** (1.5 s): two happy hops, 3 px then 2 px, each landing with a soft bump in the grid.
+
+Verified:
+- **Frames:** checked at key times. Fixes from that pass: the sneeze spray first landed on the face and looked like tears, and now starts past the body. The whistle blip first sat alone above the head, and now lights where each note appears, clear of the arm.
+- **Live scheduler:** forcing twelve antics in a row in the floating widget picked 7 different ones with no repeat twice in a row, and every pose of the four new ones showed up. No errors.
+- **Grid flashes:** at most one thud or bump per 0.6 s; the whistle's twinkles are single cells.
+- **Snapshot:** `check:anims` shows all 40 existing entries `same`, and `--update` added only the 4 new antics.
+
 ## 2026-09-26 · License, third-party notices and releases
 
 The owner chose the MIT license, to publish the npm package themselves, a PR into `main`, and releases with downloads (no GitHub Pages for now).
