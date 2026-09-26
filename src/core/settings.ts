@@ -43,6 +43,8 @@ export interface Settings {
   idleAntics: boolean
   /** while idle, play a random animation every ~this many seconds (0: off, 1: non-stop) */
   autoPlay: number
+  /** each auto-play glides into a random theme (shown only: `colors` stays as chosen) */
+  shuffleColors: boolean
   /** chiptune sound effects in sync with the grid pulses (off by default) */
   sound: boolean
   /** sound volume, 0–1 */
@@ -192,6 +194,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pokes: true,
   idleAntics: true,
   autoPlay: 0,
+  shuffleColors: false,
   sound: false,
   volume: 0.5,
   crt: false,
@@ -227,6 +230,7 @@ export function normalize(raw: unknown): Settings {
     hiddenSites: Array.isArray(s.hiddenSites) ? s.hiddenSites.filter((x) => typeof x === 'string') : [],
     cosmetic: COSMETICS.some((c) => c.id === s.cosmetic) ? (s.cosmetic as CosmeticId) : 'none',
     autoPlay: Math.min(86400, Math.max(0, Number(s.autoPlay) || 0)),
+    shuffleColors: s.shuffleColors === true,
     colors,
   }
 }

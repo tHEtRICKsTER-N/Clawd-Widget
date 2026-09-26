@@ -527,6 +527,10 @@ export function SettingsPanel({ store, host, compact, currentSite, extra, stats 
               ))}
             </select>
           </label>
+          <label className="sp-check" title="Each auto-play glides into a random theme, mixing animations and colours. Your own colours stay saved: turn this off to glide back to them.">
+            <input type="checkbox" checked={s.shuffleColors} disabled={s.autoPlay <= 0} onChange={(e) => update({ shuffleColors: e.target.checked })} />
+            Shuffle colors
+          </label>
         </div>
       </section>
 

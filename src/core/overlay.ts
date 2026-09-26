@@ -11,6 +11,7 @@
  *   sound=1 volume=0–100   wear=crown   idle=0 (no antics)   eyes=0 (no cursor)   pad=8
  *   blink=0   pokes=0 (a click on Clawd plays too)   flash=0 (no tap flash)
  *   autoplay=60|nonstop   while resting, a random animation every ~60 s, or back to back
+ *   shuffle=1   each auto-play glides into a random theme
  *
  * While it's open, changing the hash to #play=<id> or #state=<status> triggers those too.
  * The <clawd-button> element (src/wc) reads the same names from its attributes.
@@ -73,6 +74,7 @@ export function settingsFrom(get: (name: string) => string | null, base: Setting
     pokes: flag(get('pokes'), base.pokes),
     pressFlash: flag(get('flash'), base.pressFlash),
     autoPlay: autoPlayOf(get('autoplay'), base.autoPlay),
+    shuffleColors: flag(get('shuffle'), base.shuffleColors),
     showToolbar: false,
   })
 }
@@ -110,6 +112,7 @@ export function overlayUrl(base: string, s: Settings, t: { play?: boolean; every
   if (s.idleAntics !== d.idleAntics) q.set('idle', s.idleAntics ? '1' : '0')
   if (s.eyesFollow !== d.eyesFollow) q.set('eyes', s.eyesFollow ? '1' : '0')
   if (s.autoPlay > 0) q.set('autoplay', s.autoPlay <= 1 ? 'nonstop' : String(s.autoPlay))
+  if (s.autoPlay > 0 && s.shuffleColors) q.set('shuffle', '1')
   const qs = q.toString()
   return qs ? `${base}?${qs}` : base
 }

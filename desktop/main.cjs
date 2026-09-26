@@ -444,6 +444,13 @@ function menuTemplate() {
       label: 'Auto-play',
       submenu: AUTO_PLAY.map(([v, name]) => ({ label: name, type: 'radio', checked: (s.autoPlay || 0) === v, click: () => patchSettings({ autoPlay: v }) })),
     },
+    {
+      label: 'Shuffle colors',
+      type: 'checkbox',
+      checked: !!s.shuffleColors,
+      enabled: (s.autoPlay || 0) > 0,
+      click: (i) => patchSettings({ shuffleColors: i.checked }),
+    },
     { label: 'Sound effects', type: 'checkbox', checked: !!s.sound, click: (i) => patchSettings({ sound: i.checked }) },
     {
       label: 'Size',

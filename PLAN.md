@@ -91,7 +91,7 @@ Ideas from the owner after 1.1.0: Clawd keeps itself busy when left alone.
   Setting *Auto-play*: Off (default), roughly every 30 s / 1 / 2 / 5 / 10 / 30 min, or Non-stop. When idle, Clawd plays a random animation, with the gap varied so it doesn't feel mechanical. It waits while you're dragging, playing Bug Jump, being waited on ("!"), or when the page or widget is hidden. Auto-plays don't count toward achievements.
 - [x] **6.2 More idle antics** (S each)
   More of the rare micro-animations between plays (under *Idle antics*): a sneeze, a whistle with a floating note, a look-around with a hand over the eyes, a happy little hop.
-- [ ] **6.3 Color shuffle** (M)
+- [x] **6.3 Color shuffle** (M)
   Setting *Shuffle colors*: every auto-play (and every play, in Non-stop) glides smoothly into a random theme, mixing animations and colours. The chosen theme is never overwritten; turning it off glides back to it.
 
 ## Parking lot (not scheduled)

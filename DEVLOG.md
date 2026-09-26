@@ -4,6 +4,24 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-26 · 6.3 Color shuffle
+
+Setting `shuffleColors` (off by default; it only does something with auto-play on). Every auto-play glides into a random theme preset, never the one already showing, so animations and colours get mixed and matched. Non-stop plus shuffle is a party mode, shown in `docs/media/party.gif` in the README.
+- **The glide:** 1.5 s with smoothstep easing, mixing all seven colours in RGB. The background gradients, glow, label, Clawd, particles and grid all move together.
+- **Your colours stay yours:** the shuffle is only shown. The renderer holds a `tint` (the colours on screen) apart from `settings.colors`, which is never written, so nothing reaches storage (and nothing hits `chrome.storage.sync`) while it shuffles.
+- **Turning it off:** unticking *Shuffle colors*, or setting auto-play to Off, glides back to your colours. Editing a colour yourself shows it at once, dropping the shuffle.
+- **Frames:** the loop redraws every frame during a glide, then naps again.
+- **Refactor:** the colour half of `applySettings` became `applyColors()`. Every colour use reads `this.colors` (the tint, or the settings' own): the export compositor, the toast and the grid's energy colours too.
+- **Everywhere:** a *Shuffle colors* checkbox next to *Auto-play* (disabled while auto-play is Off), a menu item in the desktop menus, `shuffle=1` for the OBS overlay, and a `shuffle` attribute on `<clawd-button>`.
+
+Verified (Chromium):
+- **Gliding in:** an auto-play glided into a random preset (Nord). Halfway through, the colours were a mix belonging to no preset, and `settings.colors` stayed untouched.
+- **Picking:** seven shuffles in a row never picked the theme already showing (nord → candy → original → candy → dracula → ocean → matrix).
+- **Turning it off:** mid-glide the colours are a mix, and afterwards the chosen colours are back with the tint cleared. Auto-play without shuffle keeps the colours. Editing a colour shows it at once.
+- **Naps:** once still (after gliding home and the fade-out), the loop napped: 0 frames in 1.5 s.
+- **Looks:** frames of a glide from Original to Synthwave at 0/25/50/75/100% look right.
+- **Default look unchanged:** the pixel harness gives identical frames for the six original animations after the `applyColors` refactor, and `check:anims` shows all 44 `same`.
+
 ## 2026-09-26 · 6.1 Auto-play while idle
 
 Setting `autoPlay`, in seconds: 0 is off (the default), 1 is non-stop, anything else is "roughly every". The UI offers ~30 s, 1, 2, 5, 10 and 30 min, and Non-stop.

@@ -33,6 +33,8 @@ Click it and Clawd plays one of 12 animations while every beat ripples through t
 | <img src="docs/media/spooky.gif" width="340" alt="Spooky in the Dracula theme: bats, a ghost and a jack-o'-lantern"> | <img src="docs/media/snow.gif" width="340" alt="Snow Day in the Tokyo Night theme: snow falls and piles up on Clawd's head"> |
 | **Spooky** 🎃 in October | **Snow Day** ❄️ in December |
 
+<p align="center"><img src="docs/media/party.gif" width="340" alt="Party mode: Clawd plays one animation after another while the whole button glides from one colour theme to the next"><br><b>Party mode</b>: Auto-play on Non-stop with Shuffle colors, one animation after another in a new theme each time</p>
+
 ### Made for
 
 - **Gamers:** Bug Jump, a certain famous cheat code, nine achievements (six of them unlock hats and shades for Clawd), chiptune sound effects synthesized in sync with the grid, and Game Boy, PICO-8 and Virtual Boy themes with a CRT filter.
@@ -75,6 +77,7 @@ npm run dev          # web playground at http://localhost:5178
 - **Click to play once**, then it rests in an idle pose (blinks, glances around). Choose **Loop** to keep it going after a click.
 - **Idle antics:** every few minutes Clawd stretches, yawns, scratches its head, wanders across the button and back, sneezes, whistles a tune, looks around, or does a happy little hop. Left alone for five minutes, it nods off (Zzz) and wakes with a start when the pointer comes near. Turn it off with *Idle antics*.
 - **Auto-play (off by default):** leave Clawd alone and it plays a random animation now and then: roughly every 30 s, 1, 2, 5, 10 or 30 minutes (the gap varies so it never feels mechanical), or **Non-stop**, back to back. It waits while you drag the widget, play Bug Jump, or Clawd is waiting on you, and pauses while the page or widget is hidden. Auto-plays don't count for achievements. It's in *Between plays*, and in the desktop right-click menu.
+- **Shuffle colors (with auto-play):** every auto-play glides smoothly (1.5 s) into a random theme, so animations and colours get mixed and matched. Your own colours stay saved; turn it off and Clawd glides back to them. With Non-stop it's a party mode.
 - **Achievements and a wardrobe:** nine goals pop a pixel toast when you reach them: first jam, a 10-poke combo, 100 clicks, every year-round animation, playing at 3 AM, a certain cheat code, frequent flying, waking Clawd up, and scoring 20 in Bug Jump. Six of them unlock something for Clawd to wear: a party hat, a propeller cap, a crown, deal-with-it shades, a nightcap or headphones. The item sits on its head in every pose, guitar solos included. Pick one under *Achievements → Wear*.
 - **Bug Jump 🎮:** a tiny runner played right on the button. Bugs crawl in along the grid, leaving glowing cells behind them, and Clawd jumps over them. Catch the ✓s mid-jump for extra points. Click, <kbd>Space</kbd> or <kbd>↑</kbd> jumps, and <kbd>Esc</kbd> quits. The score takes the label's place and your high score is saved. It opens from 🎮 in the hover toolbar.
 - **A secret:** click the widget, then type a certain famous cheat code. Gamers will know it. It only listens while the widget has focus, never to the page you're on.
@@ -208,6 +211,7 @@ overlay.html?theme=clawd:OiZfWDee____2HZP7-j_oHb48MNaAA&text=Live!&play=1&every=
 | `idle=0`, `eyes=0`, `blink=0` | no antics, eyes that don't follow the cursor, no blinking |
 | `pokes=0`, `flash=0` | a click on Clawd plays too; no dark flash when a play starts |
 | `autoplay=60` or `autoplay=nonstop` | while resting, a random animation every ~60 s, or back to back |
+| `shuffle=1` | with `autoplay`: each auto-play glides into a random theme (party mode with `autoplay=nonstop`) |
 | `pad=<px>` | margin around the button (default 8) |
 
 While it's open, changing the hash to `#play=<anim>` or `#state=<state>` triggers that right away.

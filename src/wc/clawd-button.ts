@@ -19,7 +19,7 @@ import type { AnimId } from '../engine/types'
 /** defaults for the element: a Play button that plays wherever it's clicked */
 const BASE: Settings = { ...DEFAULT_SETTINGS, text: 'Play', pokes: false, showToolbar: false }
 
-const SETTING_ATTRS = ['text', 'theme', 'font', 'bold', 'size', 'anim', 'loop', 'sound', 'volume', 'wear', 'crt', 'idle', 'eyes', 'blink', 'pokes', 'flash', 'autoplay']
+const SETTING_ATTRS = ['text', 'theme', 'font', 'bold', 'size', 'anim', 'loop', 'sound', 'volume', 'wear', 'crt', 'idle', 'eyes', 'blink', 'pokes', 'flash', 'autoplay', 'shuffle']
 
 const HOST_CSS = `:host{display:inline-block;vertical-align:middle;line-height:0;-webkit-tap-highlight-color:transparent}:host([hidden]){display:none}`
 
