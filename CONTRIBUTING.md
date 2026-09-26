@@ -49,8 +49,10 @@ By contributing, you agree that your contribution is released under the project'
 
 ## Releasing (maintainers)
 
-1. On `main`, with CI green: `npm version minor` (or `patch` / `major`). This bumps `package.json` and makes the commit and the `v…` tag.
-2. `git push --follow-tags`. The *Release* workflow builds the Windows installer and portable `.exe`, the extension zip and the `<clawd-button>` tarball, and publishes a GitHub Release with them and generated notes. It stops if the tag doesn't match `package.json`.
+`main` is protected, so the version bump goes through a pull request:
+
+1. On a branch: `npm version minor --no-git-tag-version` (or `patch` / `major`), and add a `## [x.y.z] - date` section at the top of [CHANGELOG.md](CHANGELOG.md). Open a PR and merge it once CI is green.
+2. On the merged `main`: `git tag vX.Y.Z` then `git push origin vX.Y.Z`. The *Release* workflow builds the Windows installer and portable `.exe`, the extension zip and the `<clawd-button>` tarball, and publishes a GitHub Release. Its notes are that version's CHANGELOG section, followed by GitHub's generated list of pull requests. The workflow stops if the tag doesn't match `package.json` or CHANGELOG.md has no section for it.
 3. The web component is versioned on its own. To publish it: `cd packages/clawd-button`, `npm version <new version> --no-git-tag-version` (so it doesn't make a `v…` tag of its own), commit, then `npm publish` (its `prepack` builds it fresh).
 
 After changing dependencies, run `npm run licenses` to refresh `THIRD_PARTY_LICENSES.txt`.

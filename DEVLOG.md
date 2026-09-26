@@ -4,6 +4,31 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-26 · Release 1.2.0: sanity check and release setup
+
+**Sanity check** of Phase 6 on top of 1.1.0. Everything was re-run against the final code:
+- **Engine and parsing:**
+  - `check:anims`: all 44 `same`.
+  - Pixel harness: the six originals identical.
+  - Flash rate: every animation at most 3 onsets a second under reduced motion, and no pulse pops in.
+  - Seasons, the attribute parser (14 checks), autoplay parsing (5), Bug Jump units (12).
+  - Frame loop: 60 ticks a second before, during and after a game.
+- **Browser:**
+  - Auto-play (8 checks) and shuffle (10 checks).
+  - The live antic scheduler.
+  - The OBS overlay (round trip, page, hash triggers, builder).
+  - `<clawd-button>` from a fresh package build, served statically (19 checks).
+  - The extension content script on a hostile page.
+  - The popup, which shows the new Auto-play and Shuffle colors controls.
+- **Clean clone:** a fresh clone of the pushed branch passed `npm ci`, `tsc`, `check:anims` and all four builds.
+- **Packaged app:** built with `electron-builder --linux dir` and run with Non-stop and Shuffle colors. It played dance, ship and hello through 10 different backgrounds while the saved theme stayed Original, with no errors.
+
+**Release setup:**
+- **Versions:** `package.json` 1.2.0, and `clawd-button` 0.2.0 (new `autoplay` and `shuffle` attributes; the README's CDN link moves to `@0.2`).
+- **`CHANGELOG.md`:** new, with 1.2.0 and 1.1.0.
+- **Release workflow:** it now fails early if `CHANGELOG.md` has no section for the tag's version. It publishes that section as the Release notes, followed by GitHub's generated list of pull requests. Both workflow files parse as YAML, and both steps were replayed locally for 1.2.0 and 1.1.0.
+- **Docs:** CONTRIBUTING, `CLAUDE.md` and the local Claude Code guide describe the new steps: bump and changelog in a PR, then tag the merged `main`.
+
 ## 2026-09-26 · 6.3 Color shuffle
 
 Setting `shuffleColors` (off by default; it only does something with auto-play on). Every auto-play glides into a random theme preset, never the one already showing, so animations and colours get mixed and matched. Non-stop plus shuffle is a party mode, shown in `docs/media/party.gif` in the README.

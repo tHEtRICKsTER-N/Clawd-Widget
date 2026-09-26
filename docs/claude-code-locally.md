@@ -81,13 +81,13 @@ Handy commands inside Claude Code:
 
 ## 6. Releasing a new version
 
-1. Ask Claude: `bump the version to 1.2.0 in a PR`. Then merge that PR.
+1. Ask Claude: `prepare release 1.3.0: bump the version and write the CHANGELOG section, in a PR`. Then merge that PR.
 2. Then, in PowerShell:
    ```powershell
    git checkout main
    git pull
-   git tag v1.2.0
-   git push origin v1.2.0
+   git tag v1.3.0
+   git push origin v1.3.0
    ```
 3. About 5 minutes later, the Releases page has the new installer, the portable `.exe`, the extension zip and the npm package.
 

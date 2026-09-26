@@ -3,7 +3,7 @@
 Clawd, the pixel crab, as a drop-in `<clawd-button>` web component. It's an animated Play button: Clawd rocks out on a guitar (or ships a rocket, squashes a bug, levels up…) while an energy grid pulses behind the label. It has 12 animations and 15 themes, and chiptune sound if you turn it on. No dependencies and no framework: one `<script>` tag.
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/clawd-button@0.1/dist/clawd-button.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/clawd-button@0.2/dist/clawd-button.js"></script>
 
 <clawd-button text="Play" theme="synthwave" anim="levelup" href="game.html"></clawd-button>
 ```

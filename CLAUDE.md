@@ -28,5 +28,5 @@ CI runs the type check, `check:anims` and all four builds on every push and PR.
 
 - `main` is protected: work on a branch and open a pull request. Never force-push `main`.
 - One item at a time. For each: build it, check it in the playground and the host it touches, update the README if users can see it, add a DEVLOG entry (what changed, how it was checked, what wasn't), and tick its box in PLAN.md.
-- Releases: bump with `npm version minor` in a PR. After it merges, push the tag (`git tag v1.2.0` then `git push origin v1.2.0`), and the Release workflow builds and publishes the downloads.
+- Releases: in a PR, bump with `npm version minor --no-git-tag-version` and add the version's section to `CHANGELOG.md` (the Release workflow requires it and uses it as the notes). After it merges, push the tag (`git tag vX.Y.Z` then `git push origin vX.Y.Z`), and the workflow builds and publishes the downloads. The web component in `packages/clawd-button` has its own version.
 - Write code like the code around it: small modules, comments that explain why.

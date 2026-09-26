@@ -1,6 +1,6 @@
 {
   "name": "clawd-button",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Clawd as a drop-in <clawd-button> web component: an animated pixel-art Play button with an energy grid, 12 animations, 15 themes and chiptune sound. No dependencies.",
   "license": "MIT",
   "type": "module",

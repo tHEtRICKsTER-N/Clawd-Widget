@@ -46,6 +46,8 @@ Click it and Clawd plays one of 12 animations while every beat ripples through t
 
 ## Get it
 
+**What's new:** see [CHANGELOG.md](CHANGELOG.md).
+
 **Downloads:** every release on the [Releases page](https://github.com/tHEtRICKsTER-N/Clawd-Widget/releases) has the Windows installer and portable `.exe`, the browser extension as a zip (unzip it, then `chrome://extensions` → Developer mode → **Load unpacked**), and the `<clawd-button>` package. No Node.js needed.
 
 **From source:**
