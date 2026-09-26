@@ -52,7 +52,7 @@ Click it and Clawd plays one of 12 animations while every beat ripples through t
 |---|---|---|
 | **Web playground** | `src/` | `npm run dev` → http://localhost:5178 |
 | **Browser extension** (Chrome, Edge, Brave, Arc) | `extension/` → `dist-extension/` | `npm run build:ext`, then `chrome://extensions` → Developer mode → **Load unpacked** → pick `dist-extension/` |
-| **Desktop widget** (Windows; also builds for macOS/Linux) | `desktop/` → `release/` | `npm run desktop` to run, `npm run dist:desktop` to build `release/Clawd Widget Setup 1.0.2.exe` (installer) and `release/Clawd Widget 1.0.2.exe` (portable) |
+| **Desktop widget** (Windows; also builds for macOS/Linux) | `desktop/` → `release/` | `npm run desktop` to run, `npm run dist:desktop` to build `release/Clawd Widget Setup <version>.exe` (installer) and `release/Clawd Widget <version>.exe` (portable) |
 | **`<clawd-button>` web component** (any web page, e.g. a game's Play button) | `src/wc/` → `packages/clawd-button/` | `npm run build:wc`, then open `packages/clawd-button/demo.html` from a local web server. See [its README](packages/clawd-button/README.md) |
 
 Want to help? See [CONTRIBUTING.md](CONTRIBUTING.md). New animations, themes and hats are very welcome.
