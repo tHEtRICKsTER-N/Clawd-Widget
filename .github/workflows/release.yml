@@ -29,8 +29,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run build:desktop
-      - run: npx electron-builder --win portable nsis --publish never
+      # builds the pages, fetches Electron if it isn't there yet, then packages it
+      - run: npm run dist:desktop -- --publish never
       - uses: actions/upload-artifact@v4
         with:
           name: desktop

@@ -22,7 +22,15 @@ Verified:
 - **npm pack:** starting from an empty `dist/`, it runs `prepack`, rebuilds and packs 15 files (190 kB), including `LICENSE` and `FONTS-LICENSE.txt`.
 - **The web job, replayed locally:** the extension zip (15 files) and `clawd-button-0.1.0.tgz`. Installed in a scratch project, the tarball resolves `import 'clawd-button'` in Node, and its types work in a strict TypeScript file (`createElement('clawd-button')`, `play('ship')`, the `clawd-end` event).
 
-Not verified yet: the Windows job, which runs for the first time on the pull request.
+**The first Windows run on the PR failed.** electron-builder reported `The specified electronDist does not exist: …\node_modules\electron\dist`.
+- **Cause:** Electron 44's package has no install script, so `npm install` / `npm ci` never download the Electron binary. `npm run desktop` still works, because Electron's CLI downloads the binary on first use. But `electron-builder` is pointed at `node_modules/electron/dist` (`electronDist`) and never triggers that download. So `npm run dist:desktop` failed on any fresh clone, not only in CI; reproduced on a clean clone here.
+- **Fix:** `dist:desktop` now runs `node node_modules/electron/install.js` first. That's Electron's own downloader, and it exits at once when the binary is already there. The Windows job now calls `npm run dist:desktop -- --publish never`, the same command people run locally.
+
+**Smaller desktop app.** The packaged app turned out to carry every production dependency: the whole `@fontsource` packages, React, gifenc. That was 978 of the 996 files in a 15.9 MB `app.asar`. The main process only requires `electron` and Node built-ins, and Vite bundles everything else into `dist-desktop/`. So those packages moved to `devDependencies`, which electron-builder leaves out, and the lockfile was updated with `npm install --package-lock-only`. `app.asar` is now 0.63 MB with 18 files, `LICENSE` and `THIRD_PARTY_LICENSES.txt` among them.
+- The packaged Linux build (`electron-builder --linux dir`, from a clean `npm ci`) starts under Xvfb and plays Ship It.
+- Its settings window renders all 8 cards through React with no page errors.
+
+Not verified yet: the Windows packaging itself, which the PR's release check runs.
 
 ## 2026-09-25 · Getting it seen (not a PLAN item)
 
