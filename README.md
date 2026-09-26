@@ -44,6 +44,10 @@ Click it and Clawd plays one of 12 animations while every beat ripples through t
 
 ## Get it
 
+**Downloads:** every release on the [Releases page](https://github.com/tHEtRICKsTER-N/Clawd-Widget/releases) has the Windows installer and portable `.exe`, the browser extension as a zip (unzip it, then `chrome://extensions` → Developer mode → **Load unpacked**), and the `<clawd-button>` package. No Node.js needed.
+
+**From source:**
+
 | | where | how to run |
 |---|---|---|
 | **Web playground** | `src/` | `npm run dev` → http://localhost:5178 |
@@ -237,3 +241,10 @@ While it's open, changing the hash to `#play=<anim>` or `#state=<state>` trigger
 Per-cell brightness of the grid was fitted against every reference frame: mean absolute error is ≈ 0.07 per cell, and mean brightness matches. Small per-cycle jitter (seeded) on pulse timing, strength, speed, centre and particle positions keeps repeats from looking mechanical.
 
 `public/reference.webm` is a lossless VP9 transcode of the supplied clip. The original is MPEG-4 Part 2, which browsers can't decode.
+
+## License
+
+The code is under the [MIT license](LICENSE). It doesn't cover:
+- the Clawd character, which belongs to Anthropic (this is an unofficial fan project);
+- the reference clip in `ultracode_animation_assets/` and `public/reference.webm`, which belong to their owners;
+- the bundled fonts and libraries, which keep their own licenses (SIL OFL 1.1 and MIT): see [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt), which ships with the extension and the desktop app.

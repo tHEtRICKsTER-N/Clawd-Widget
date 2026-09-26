@@ -76,7 +76,7 @@ Right now Clawd only does something when clicked. This phase gives it a life bet
 
 - [x] **5.1 Export GIF, WebM and sprite sheet** (M)
   Any animation, in the current theme, at any size. `setControlled` already renders exact frames.
-- [~] **5.2 `<clawd-button>` web component on npm** (M). Built and tested in `packages/clawd-button/`; publishing to npm waits on a license and the owner's npm account (see DEVLOG).
+- [~] **5.2 `<clawd-button>` web component on npm** (M). Built, tested and ready in `packages/clawd-button/` (MIT); the owner publishes it from their npm account (see DEVLOG).
   Game devs can drop it onto an itch.io page as their Play button.
 - [x] **5.3 OBS overlay URL** (S)
   Transparent background, with settings and triggers in the URL.

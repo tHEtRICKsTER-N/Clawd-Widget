@@ -88,3 +88,7 @@ itch.io runs an HTML5 game's `index.html` in a frame; the project page itself do
 - **Size on the wire:** 36 kB gzipped, plus about 25 kB per font face the first time a font is shown (Inter uses two). Nothing else is fetched.
 - **Secrets:** try ↑↑↓↓←→←→BA on a focused button.
 - **Server-side rendering:** importing it without a DOM is safe; it registers the element in the browser.
+
+## License
+
+MIT. The embedded fonts keep their SIL Open Font License 1.1, whose notices are in `dist/FONTS-LICENSE.txt`. Clawd is the Claude Code mascot; this is an unofficial fan project, not affiliated with Anthropic.

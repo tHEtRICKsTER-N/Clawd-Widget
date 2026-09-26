@@ -4,6 +4,26 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-26 · License, third-party notices and releases
+
+The owner chose the MIT license, to publish the npm package themselves, a PR into `main`, and releases with downloads (no GitHub Pages for now).
+- **License.** `LICENSE` (MIT, © 2026 Naimish) at the root and in the package, with `"license": "MIT"` in both `package.json`s. The README's License section says what it doesn't cover: the Clawd character (Anthropic's), the reference clip, and the bundled fonts and libraries. CONTRIBUTING says contributions come under the same license.
+- **Third-party notices.** `npm run licenses` (`scripts/third-party-licenses.mjs`) collects the licenses of everything bundled into the builds into `THIRD_PARTY_LICENSES.txt`: the five fonts (SIL OFL 1.1), React, React DOM, scheduler and gifenc (MIT). The extension build copies it and `LICENSE` into `dist-extension/`, and electron-builder packs both into the desktop app. The web component already ships `dist/FONTS-LICENSE.txt`, since only the fonts are bundled into it.
+- **Package.** `prepack` runs `build:wc`, so `npm pack` and `npm publish` always ship a fresh build.
+- **Releases.** `.github/workflows/release.yml` runs on a `v*` tag:
+  - on Windows: the installer and portable `.exe` (`electron-builder --publish never`);
+  - on Linux: checks that the tag matches `package.json`, zips the extension and packs the `<clawd-button>` tarball;
+  - finally: publishes a GitHub Release with all four files and generated notes.
+
+  Pull requests that touch packaging run the two build jobs as a check, without releasing. The README's "Get it" points to the Releases page, and CONTRIBUTING has the steps: `npm version minor`, then `git push --follow-tags`.
+
+Verified:
+- **Extension build:** `dist-extension/` now contains `LICENSE` and `THIRD_PARTY_LICENSES.txt` (9 packages).
+- **npm pack:** starting from an empty `dist/`, it runs `prepack`, rebuilds and packs 15 files (190 kB), including `LICENSE` and `FONTS-LICENSE.txt`.
+- **The web job, replayed locally:** the extension zip (15 files) and `clawd-button-0.1.0.tgz`. Installed in a scratch project, the tarball resolves `import 'clawd-button'` in Node, and its types work in a strict TypeScript file (`createElement('clawd-button')`, `play('ship')`, the `clawd-end` event).
+
+Not verified yet: the Windows job, which runs for the first time on the pull request.
+
 ## 2026-09-25 · Getting it seen (not a PLAN item)
 
 With the plan done apart from the npm publish, a pass to make the repo inviting for newcomers:

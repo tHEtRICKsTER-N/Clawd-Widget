@@ -44,3 +44,13 @@ npm run build && npm run build:ext && npm run build:desktop && npm run build:wc
 ```
 
 CI runs the same checks on every push and pull request. Write code that reads like the code around it. For a notable change, add a short entry at the top of [DEVLOG.md](DEVLOG.md): what changed, how you checked it, and anything you couldn't check.
+
+By contributing, you agree that your contribution is released under the project's [MIT license](LICENSE).
+
+## Releasing (maintainers)
+
+1. On `main`, with CI green: `npm version minor` (or `patch` / `major`). This bumps `package.json` and makes the commit and the `v…` tag.
+2. `git push --follow-tags`. The *Release* workflow builds the Windows installer and portable `.exe`, the extension zip and the `<clawd-button>` tarball, and publishes a GitHub Release with them and generated notes. It stops if the tag doesn't match `package.json`.
+3. The web component is versioned on its own. To publish it: `cd packages/clawd-button`, `npm version <new version> --no-git-tag-version` (so it doesn't make a `v…` tag of its own), commit, then `npm publish` (its `prepack` builds it fresh).
+
+After changing dependencies, run `npm run licenses` to refresh `THIRD_PARTY_LICENSES.txt`.

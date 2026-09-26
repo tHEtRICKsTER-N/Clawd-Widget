@@ -1,0 +1,87 @@
+name: Release
+
+# Push a version tag to build the downloads and publish a GitHub Release with them:
+#   npm version minor && git push --follow-tags     (the tag must match package.json's version)
+# Pull requests that touch packaging run the same builds as a check, without releasing.
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - package.json
+      - package-lock.json
+      - desktop/**
+      - scripts/build-extension.mjs
+      - packages/clawd-button/**
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: Windows installer and portable .exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:desktop
+      - run: npx electron-builder --win portable nsis --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop
+          path: release/*.exe
+          if-no-files-found: error
+
+  web:
+    name: Extension zip and npm package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The tag matches package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          v=$(node -p "require('./package.json').version")
+          [ "$GITHUB_REF_NAME" = "v$v" ] || { echo "::error::tag $GITHUB_REF_NAME doesn't match package.json version $v"; exit 1; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm run build:ext
+      - name: Zip the extension
+        run: |
+          v=$(node -p "require('./package.json').version")
+          (cd dist-extension && zip -qr "../clawd-widget-extension-$v.zip" .)
+      - name: Pack the web component
+        run: npm pack ./packages/clawd-button
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: |
+            clawd-widget-extension-*.zip
+            clawd-button-*.tgz
+          if-no-files-found: error
+
+  release:
+    name: GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [desktop, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true

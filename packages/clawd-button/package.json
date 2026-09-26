@@ -2,6 +2,7 @@
   "name": "clawd-button",
   "version": "0.1.0",
   "description": "Clawd as a drop-in <clawd-button> web component: an animated pixel-art Play button with an energy grid, 12 animations, 15 themes and chiptune sound. No dependencies.",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/clawd-button.js",
   "module": "./dist/clawd-button.js",
@@ -15,7 +16,8 @@
   "files": [
     "dist",
     "clawd-button.d.ts",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "sideEffects": true,
   "keywords": [
@@ -37,5 +39,8 @@
     "directory": "packages/clawd-button"
   },
   "homepage": "https://github.com/tHEtRICKsTER-N/Clawd-Widget/tree/main/packages/clawd-button#readme",
-  "bugs": "https://github.com/tHEtRICKsTER-N/Clawd-Widget/issues"
+  "bugs": "https://github.com/tHEtRICKsTER-N/Clawd-Widget/issues",
+  "scripts": {
+    "prepack": "npm --prefix ../.. run build:wc"
+  }
 }
