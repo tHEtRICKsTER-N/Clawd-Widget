@@ -3,7 +3,7 @@
 Clawd, the pixel crab, as a drop-in `<clawd-button>` web component. It's an animated Play button: Clawd rocks out on a guitar (or ships a rocket, squashes a bug, levels up…) while an energy grid pulses behind the label. It has 12 animations and 15 themes, and chiptune sound if you turn it on. No dependencies and no framework: one `<script>` tag.
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/clawd-button@0.1/dist/clawd-button.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/clawd-button@0.2/dist/clawd-button.js"></script>
 
 <clawd-button text="Play" theme="synthwave" anim="levelup" href="game.html"></clawd-button>
 ```
@@ -52,6 +52,8 @@ All are optional and can change at any time.
 | `blink` | on | `blink="off"`: no blinking or glancing around |
 | `pokes` | off | `pokes`: a click on Clawd itself pokes it (squish, heart, combos) instead of playing |
 | `flash` | on | `flash="off"`: no dark flash when a play starts |
+| `autoplay` | off | while resting, a random animation every ~so many seconds (`autoplay="60"`), or back to back (`autoplay="nonstop"`). The gap varies ±40% |
+| `shuffle` | off | with `autoplay`: each auto-play glides smoothly into a random theme. `<clawd-button autoplay="nonstop" shuffle>` is a party |
 
 A boolean attribute is on when present (`<clawd-button sound>`), and off with `="off"`, `="false"`, `="no"` or `="0"`.
 

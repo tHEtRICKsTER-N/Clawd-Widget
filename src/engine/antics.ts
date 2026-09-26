@@ -1,13 +1,14 @@
 /**
- * Things Clawd does on its own while resting: now and then a stretch, a yawn, a scratch
- * or a little wander, and after a long while alone it dozes off. Like the animations,
+ * Things Clawd does on its own while resting: now and then a stretch, a yawn, a scratch,
+ * a little wander, a sneeze, a whistle, a look around or a hop, and after a long while
+ * alone it dozes off. Like the animations,
  * each is a pure function of the time since it started; ClawdLife (core/life.ts)
  * decides when.
  */
 
 import { front } from './clawd'
-import { CELL } from './grid'
-import { BANG, Z_L, Z_M, type Particle } from './particle'
+import { CELL, cellAt } from './grid'
+import { BANG, DOT, Z_L, Z_M, type Particle } from './particle'
 import { makePulse, scheduled, type Pulse } from './pulses'
 import { SPRITE_ORIGIN, SPRITE_UNIT } from './sprites'
 import { pose, type Pose } from './types'
@@ -118,7 +119,98 @@ export const wander: Act = {
   particles: none,
 }
 
-export const ANTICS = { stretch, yawn, scratch, wander }
+/** Nose tickle, a big "ah… ah…", CHOO! with a jolt and a little spray, then a dazed blink. */
+export const sneeze: Act = {
+  duration: 1.9,
+  pose(t) {
+    if (t < 0.35) return pose(front({ eyes: 'closed', mouth: true, squash: -1 }), { name: 'ah-1' })
+    if (t < 0.7) return pose(front({ eyes: 'closed', mouth: 'open', squash: -2, left: 'up', right: 'up' }), { name: 'ah-2' })
+    if (t < 0.95) return pose(front({ eyes: 'closed', mouth: true, legs: 'crouch', left: 'down', right: 'down' }), { name: 'choo' })
+    if (t < 1.5) return pose(front({ eyes: t > 1.25 && t < 1.32 ? 'closed' : 'wide' }), { name: 'dazed' })
+    return pose(front({ eyes: 'happy' }), { name: 'bless-you' })
+  },
+  pulses: (t) => scheduled(t, [[0.7, 'land', { strength: 0.4 }]], 1500),
+  particles(t) {
+    const a = t - 0.7
+    if (a < 0 || a > 0.45) return []
+    // a fine spray bursting out past both sides of the body
+    const out: Particle[] = []
+    for (let k = 0; k < 6; k++) {
+      const side = k % 2 ? 1 : -1
+      out.push({ x: 16 + side * (11 + Math.round((10 + k * 3) * a)), y: 15 + (k % 3) + Math.round(20 * a * a), glyph: DOT, color: 'text', alpha: a > 0.3 ? 0.5 : 0.9 })
+    }
+    return out
+  },
+}
+
+const NOTE = ['.##', '.#.', '.#.', '##.', '##.']
+const NOTES = [0.3, 1.0, 1.7]
+
+/** Whistles a little tune, looking innocently about, while notes float up. */
+export const whistle: Act = {
+  duration: 2.7,
+  pose(t) {
+    if (t < 2.4) return pose(front({ gaze: t < 1.2 ? [1, -1] : [-1, -1], mouth: true }), { name: t < 1.2 ? 'whistle-r' : 'whistle-l' })
+    return pose(front(), { name: 'whistle-done' })
+  },
+  // each note lights the cell where it appears (and blips, with sound on)
+  pulses: (t) => scheduled(t, NOTES.map((n): [number, 'twinkle', { strength: number; cx: number; cy: number }] => [n, 'twinkle', { strength: 0.5, ...cellAt(30, 13, true) }]), 1600),
+  particles(t) {
+    const out: Particle[] = []
+    for (const n of NOTES) {
+      const a = t - n
+      if (a < 0 || a > 1) continue
+      out.push({ x: 29 + Math.round(a * 6), y: 11 - Math.round(a * 10), glyph: NOTE, color: 'fx', alpha: a > 0.75 ? 0.5 : 1 })
+    }
+    return out
+  },
+}
+
+const HUH = ['###', '..#', '.##', '...', '.#.']
+
+/** Shades its eyes and looks left, then right, then up, and gives up with a shrug. */
+export const lookAround: Act = {
+  duration: 2.5,
+  pose(t) {
+    if (t < 0.9) return pose(front({ eyes: 'lookL', right: 'up' }), { ox: t < 0.2 ? 0 : -1, name: 'look-left' })
+    if (t < 1.1) return pose(front(), { name: 'look-mid' })
+    if (t < 1.8) return pose(front({ eyes: 'lookR', left: 'up' }), { ox: 1, name: 'look-right' })
+    if (t < 2.1) return pose(front({ gaze: [0, -1] }), { name: 'look-up' })
+    if (t < 2.35) return pose(front({ eyes: 'closed', left: 'up', right: 'up' }), { name: 'shrug' })
+    return pose(front(), { name: 'look-done' })
+  },
+  pulses: none,
+  particles: (t) => (t >= 1.8 && t < 2.35 ? [{ x: 15, y: 2, glyph: HUH, color: 'fx', alpha: 1 }] : []),
+}
+
+const HOPS: [start: number, height: number][] = [
+  [0.1, 3],
+  [0.75, 2],
+]
+const HOP_AIR = 0.3
+
+/** Two happy little hops in place, each landing with a soft bump in the grid. */
+export const hop: Act = {
+  duration: 1.5,
+  pose(t) {
+    for (const [at, h] of HOPS) {
+      const u = t - at
+      if (u < 0 || u > 0.12 + HOP_AIR + 0.12) continue
+      if (u < 0.12) return pose(front({ legs: 'crouch', eyes: 'happy' }), { name: 'hop-crouch' })
+      if (u < 0.12 + HOP_AIR) {
+        const f = (u - 0.12) / HOP_AIR
+        const dy = Math.round(h * 4 * f * (1 - f))
+        return pose(front({ legs: 'air', dy: -dy, eyes: 'happy', left: 'up', right: 'up' }), { name: `hop ${dy}` })
+      }
+      return pose(front({ legs: 'crouch', eyes: 'happy' }), { name: 'hop-land' })
+    }
+    return pose(front({ eyes: t > 1.2 ? 'open' : 'happy' }), { name: 'hop-rest' })
+  },
+  pulses: (t) => scheduled(t, HOPS.map(([at], i): [number, 'land', { strength: number }] => [at + 0.12 + HOP_AIR, 'land', { strength: i ? 0.25 : 0.32 }]), 1700),
+  particles: none,
+}
+
+export const ANTICS = { stretch, yawn, scratch, wander, sneeze, whistle, lookAround, hop }
 export type AnticId = keyof typeof ANTICS
 
 // ───────────────────────── dozing ─────────────────────────

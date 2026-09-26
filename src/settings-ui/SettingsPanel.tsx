@@ -3,7 +3,7 @@ import { ACHIEVEMENTS, emptyStats, normalizeStats, type Stats } from '../core/ac
 import { canExportWebm, exportGif, exportSheet, exportWebm, type ExportFormat } from '../core/export'
 import { overlayUrl } from '../core/overlay'
 import type { ClawdButton } from '../core/renderer'
-import { DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, parseThemeCode, themeCode, type Colors, type Settings } from '../core/settings'
+import { AUTO_PLAY, DEFAULT_SETTINGS, FONTS, PRESETS, SIZES, parseThemeCode, themeCode, type Colors, type Settings } from '../core/settings'
 import type { SettingsStore, StatsStore } from '../core/store'
 import { ANIMATIONS, ANIM_LIST, SEASONAL, offered } from '../engine/animations'
 import { COSMETICS, type CosmeticId } from '../engine/cosmetics'
@@ -511,9 +511,25 @@ export function SettingsPanel({ store, host, compact, currentSite, extra, stats 
             <input type="checkbox" checked={s.pokes} onChange={(e) => update({ pokes: e.target.checked })} />
             Poke Clawd
           </label>
-          <label className="sp-check" title="Every few minutes Clawd stretches, yawns, scratches or wanders off. Left alone for a while, it dozes off, and wakes when the pointer comes near.">
+          <label className="sp-check" title="Every few minutes Clawd stretches, yawns, scratches, wanders off, sneezes, whistles, looks around or hops. Left alone for a while, it dozes off, and wakes when the pointer comes near.">
             <input type="checkbox" checked={s.idleAntics} onChange={(e) => update({ idleAntics: e.target.checked })} />
             Idle antics
+          </label>
+        </div>
+        <div className="sp-row">
+          <label className="sp-check" title="While Clawd rests, it plays a random animation now and then (never while you drag it, play Bug Jump, or it's hidden). Auto-plays don't count for achievements.">
+            Auto-play
+            <select value={s.autoPlay} onChange={(e) => update({ autoPlay: Number(e.target.value) })}>
+              {AUTO_PLAY.concat(AUTO_PLAY.some((o) => o.value === s.autoPlay) ? [] : [{ value: s.autoPlay, label: `Every ~${s.autoPlay} s` }]).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="sp-check" title="Each auto-play glides into a random theme, mixing animations and colours. Your own colours stay saved: turn this off to glide back to them.">
+            <input type="checkbox" checked={s.shuffleColors} disabled={s.autoPlay <= 0} onChange={(e) => update({ shuffleColors: e.target.checked })} />
+            Shuffle colors
           </label>
         </div>
       </section>

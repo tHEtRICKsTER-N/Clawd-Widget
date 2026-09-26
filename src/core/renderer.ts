@@ -21,7 +21,7 @@ import { ensureFont } from './fonts'
 import { BugJump } from './game'
 import { ClawdLife, type SpriteToClient } from './life'
 import { ChipSound } from './sound'
-import { darken, fontFamily, fontWeight, lighten, mix, rgba, rgbCsv, type Settings } from './settings'
+import { COLOR_KEYS, PRESETS, darken, fontFamily, fontWeight, lighten, mix, rgba, rgbCsv, type Colors, type Settings } from './settings'
 
 export const BUTTON_CSS = `
 .cw-btn{position:relative;display:block;overflow:hidden;isolation:isolate;cursor:pointer;user-select:none;-webkit-user-select:none;
@@ -49,6 +49,14 @@ const LABEL_RIGHT = 540
 const LABEL_SIZE = 30.5
 /** longest nap between frames while nothing changes (a safety net, e.g. for zoom changes) */
 const MAX_NAP = 5
+/** auto-play: seconds of rest between plays in non-stop mode */
+const NONSTOP_GAP = 1.2
+/** colour shuffle: seconds a glide from one theme to the next takes */
+const GLIDE = 1.5
+
+const sameColors = (a: Colors, b: Colors) => COLOR_KEYS.every((k) => a[k].toLowerCase() === b[k].toLowerCase())
+const mixColors = (a: Colors, b: Colors, k: number): Colors =>
+  Object.fromEntries(COLOR_KEYS.map((key) => [key, mix(a[key], b[key], k)])) as unknown as Colors
 
 export interface RendererOptions {
   /** called when a single play finishes */
@@ -109,6 +117,9 @@ export class ClawdButton {
   private raf = 0
   /** timer while the loop naps until the next scheduled change */
   private nap = 0
+  /** a frame is being drawn; and whether something asked for another frame meanwhile */
+  private inTick = false
+  private wokenInTick = false
   /** longest dt the next frame may use: 0.1 s, or the nap's length after a nap */
   private maxDt = 0.1
   private last = 0
@@ -145,6 +156,14 @@ export class ClawdButton {
   private gameShown = { label: '', over: false }
   /** start Bug Jump once the current play ends (after the secret) */
   private gameAfterPlay = false
+  /** the widget is being dragged */
+  private dragging = false
+  /** auto-play: seconds of quiet so far, and how many this wait lasts */
+  private autoWait = 0
+  private autoGap = 0
+  /** colour shuffle: the colours on screen when they aren't the settings' own, and a glide under way (to null: back to them) */
+  private tint: Colors | null = null
+  private glide: { from: Colors; to: Colors | null; t: number } | null = null
   /** the system asks for reduced motion: calmer pulses, no tap flash, calmer eyes */
   private motion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
   private calm = !!this.motion?.matches
@@ -184,6 +203,7 @@ export class ClawdButton {
     this.fx = this.cFx.getContext('2d')!
     this.el = el
     parent.appendChild(el)
+    this.autoGap = this.nextGap()
     this.applySettings()
     window.addEventListener('pointermove', this.onPointerMove, { capture: true, passive: true })
     // keys only while the button itself has focus: never the host page's
@@ -199,6 +219,15 @@ export class ClawdButton {
   setSettings(s: Settings) {
     const prev = this.s
     this.s = s
+    if (s.autoPlay !== prev.autoPlay) this.quiet()
+    if (!sameColors(prev.colors, s.colors)) {
+      // colours picked by hand: show them right away
+      this.tint = null
+      this.glide = null
+    } else if ((!s.shuffleColors || s.autoPlay <= 0) && (this.tint || this.glide)) {
+      // shuffle (or auto-play) turned off: glide back to the chosen colours
+      this.glide = { from: { ...this.colors }, to: null, t: 0 }
+    }
     this.applySettings(prev)
     this.wake()
   }
@@ -207,12 +236,19 @@ export class ClawdButton {
     return this.s
   }
 
+  /** The colours on screen: the settings' own, or where the colour shuffle has got to. */
+  get colors(): Colors {
+    return this.tint ?? this.s.colors
+  }
+
   /**
    * Play an animation (default: the one chosen in settings; 'random' picks a different one
-   * each time). `loop` overrides the settings' play-once / loop for this play.
+   * each time). `loop` overrides the settings' play-once / loop for this play; `auto`: an
+   * auto-play, which doesn't count towards achievements.
    */
-  play(id?: AnimId | 'random', opts: { loop?: boolean } = {}) {
+  play(id?: AnimId | 'random', opts: { loop?: boolean; auto?: boolean } = {}) {
     this.wake()
+    this.quiet()
     if (this.game) this.stopGame()
     this.gameAfterPlay = false
     this.playLoop = opts.loop ?? null
@@ -225,7 +261,7 @@ export class ClawdButton {
     this.linger = null
     this.life.reset()
     this.opts.onPlay?.(resolved)
-    this.opts.onEvent?.({ type: 'play', id: resolved, hour: new Date().getHours() })
+    if (!opts.auto) this.opts.onEvent?.({ type: 'play', id: resolved, hour: new Date().getHours() })
   }
 
   /**
@@ -234,6 +270,7 @@ export class ClawdButton {
    */
   click(x: number, y: number) {
     this.wake()
+    this.quiet()
     this.unlockSound()
     if (this.game) {
       this.game.jump()
@@ -319,6 +356,7 @@ export class ClawdButton {
   /** Return to the resting state. */
   stop() {
     this.wake()
+    this.quiet()
     if (this.mode === 'play' && this.anim) this.linger = { anim: this.anim, end: Math.min(this.playT, this.anim.duration), t: 0 }
     this.mode = 'idle'
   }
@@ -338,6 +376,8 @@ export class ClawdButton {
    */
   setDragging(on: boolean) {
     this.wake()
+    this.quiet()
+    this.dragging = on
     if (on) this.opts.onEvent?.({ type: 'drag' })
     if (!on) this.life.drag(false)
     else if (this.s.dragReact && this.mode === 'idle' && !this.controlled) this.life.drag(true)
@@ -418,7 +458,6 @@ export class ClawdButton {
 
   private applySettings(prev?: Settings) {
     const s = this.s
-    const c = s.colors
     const width = s.size
     const height = Math.round((width * REF_H) / REF_W)
     const kk = width / REF_W
@@ -428,21 +467,10 @@ export class ClawdButton {
     st.borderRadius = `${32 * kk}px`
     this.el.setAttribute('aria-label', s.text || 'Clawd button')
 
-    const bgc = c.background
-    this.bg.style.background = [
-      `radial-gradient(12.5% 105% at 88.8% 50%, ${c.glow} 0%, ${rgba(c.glow, 0.62)} 42%, ${rgba(c.glow, 0)} 100%)`,
-      `linear-gradient(90deg, ${darken(bgc, 0.36)} 0%, ${darken(bgc, 0.28)} 22%, ${darken(bgc, 0.2)} 44%, ${darken(bgc, 0.08)} 64%, ${bgc} 78%, ${lighten(bgc, 0.03)} 90%, ${darken(bgc, 0.06)} 100%)`,
-    ].join(',')
-    this.intro.style.background = [
-      `radial-gradient(16% 120% at 88.8% 50%, ${rgba(lighten(c.glow, 0.35), 0.3)}, ${rgba(lighten(c.glow, 0.35), 0)} 100%)`,
-      rgba(lighten(bgc, 0.35), 0.24),
-    ].join(',')
-    this.el.style.background = darken(bgc, 0.3)
-    this.dark.style.background = PRESS_COLOR
+    this.applyColors()
 
     const L = this.label.style
     L.left = `${LABEL_LEFT * kk}px`
-    L.color = c.text
     L.fontFamily = fontFamily(s)
     L.fontWeight = String(fontWeight(s))
     this.label.textContent = s.text
@@ -454,6 +482,30 @@ export class ClawdButton {
       `repeating-linear-gradient(to bottom, rgba(0,0,0,.3) 0 ${line / 3}px, transparent ${line / 3}px ${line}px)`,
       'radial-gradient(ellipse 75% 95% at 50% 50%, transparent 60%, rgba(0,0,0,.35) 100%)',
     ].join(',')
+
+    this.resize()
+    const fontChanged = !prev || prev.font !== s.font || prev.customFont !== s.customFont || prev.bold !== s.bold
+    this.fitLabel()
+    if (fontChanged) void ensureFont(s.font).then(() => this.fitLabel())
+    this.drawn = null
+  }
+
+  /** Everything coloured: the background layers, the label, Clawd and the effects. */
+  private applyColors() {
+    const c = this.colors
+    const bgc = c.background
+    this.bg.style.background = [
+      `radial-gradient(12.5% 105% at 88.8% 50%, ${c.glow} 0%, ${rgba(c.glow, 0.62)} 42%, ${rgba(c.glow, 0)} 100%)`,
+      `linear-gradient(90deg, ${darken(bgc, 0.36)} 0%, ${darken(bgc, 0.28)} 22%, ${darken(bgc, 0.2)} 44%, ${darken(bgc, 0.08)} 64%, ${bgc} 78%, ${lighten(bgc, 0.03)} 90%, ${darken(bgc, 0.06)} 100%)`,
+    ].join(',')
+    this.intro.style.background = [
+      `radial-gradient(16% 120% at 88.8% 50%, ${rgba(lighten(c.glow, 0.35), 0.3)}, ${rgba(lighten(c.glow, 0.35), 0)} 100%)`,
+      rgba(lighten(bgc, 0.35), 0.24),
+    ].join(',')
+    this.el.style.background = darken(bgc, 0.3)
+    this.dark.style.background = PRESS_COLOR
+    this.label.style.color = c.text
+    this.toastEl.style.color = c.text
 
     this.palette = { ...PALETTE, ...COSMETIC_PALETTE, O: c.bot, o: darken(c.bot, 0.2) }
     this.fxColors = {
@@ -470,11 +522,6 @@ export class ClawdButton {
       c2: c.bot,
       c3: lighten(c.effectGlow, 0.2),
     }
-
-    this.resize()
-    const fontChanged = !prev || prev.font !== s.font || prev.customFont !== s.customFont || prev.bold !== s.bold
-    this.fitLabel()
-    if (fontChanged) void ensureFont(s.font).then(() => this.fitLabel())
     this.drawn = null
   }
 
@@ -482,7 +529,7 @@ export class ClawdButton {
     const kk = this.s.size / REF_W
     const T = this.toastEl.style
     T.left = `${LABEL_LEFT * kk}px`
-    T.color = this.s.colors.text
+    T.color = this.colors.text
     const base = 14 * kk
     T.fontSize = `${base}px`
     const avail = (LABEL_RIGHT - LABEL_LEFT) * kk
@@ -527,7 +574,16 @@ export class ClawdButton {
     const dt = this.last ? Math.min(this.maxDt, (now - this.last) / 1000) : 0
     this.last = now
     this.maxDt = 0.1
-    this.schedule(this.step(now, dt))
+    this.inTick = true
+    this.wokenInTick = false
+    let rest = 0
+    try {
+      rest = this.step(now, dt)
+    } finally {
+      this.inTick = false
+    }
+    // something started during the frame (a play from onEnd, the game after the secret): no nap
+    this.schedule(this.wokenInTick ? 0 : rest)
   }
 
   /**
@@ -553,6 +609,11 @@ export class ClawdButton {
    * whatever the input starts is timed from now.
    */
   private wake() {
+    // mid-frame: the frame loop schedules the next one itself (a second rAF here would start a second loop)
+    if (this.inTick) {
+      this.wokenInTick = true
+      return
+    }
     if (!this.nap) {
       if (!this.raf) this.raf = requestAnimationFrame(this.tick)
       return
@@ -565,8 +626,35 @@ export class ClawdButton {
     this.maxDt = 0.1
     this.idleT += dt
     this.soundClock += dt
+    if (this.mode === 'idle' && this.autoReady()) this.autoWait += dt
     this.life.advance(dt)
     this.raf = requestAnimationFrame(this.tick)
+  }
+
+  /** Auto-play is on and may start something now: resting on a visible page, no game, drag or waiting. */
+  private autoReady(): boolean {
+    if (this.s.autoPlay <= 0 || this.controlled || this.game || this.gameAfterPlay || this.dragging || this.life.waiting) return false
+    return typeof document === 'undefined' || document.visibilityState !== 'hidden'
+  }
+
+  /** Something happened (a play, a click, a drag): the auto-play wait starts over. */
+  private quiet() {
+    this.autoWait = 0
+    this.autoGap = this.nextGap()
+  }
+
+  /** Glide into a random theme preset (never the one already on screen). */
+  private shuffle() {
+    const now = this.colors
+    const pool = PRESETS.filter((p) => !sameColors(p.colors, now))
+    const next = pool[Math.floor(Math.random() * pool.length)]
+    this.glide = { from: { ...now }, to: next.colors, t: 0 }
+  }
+
+  /** How long the next auto-play waits: about the chosen time, varied ±40% so it doesn't feel mechanical. */
+  private nextGap(): number {
+    const v = this.s.autoPlay
+    return v <= 1 ? NONSTOP_GAP : v * (0.6 + 0.8 * Math.random())
   }
 
   /** Advance and draw one frame; returns seconds until anything can change by itself (0: moving). */
@@ -581,6 +669,7 @@ export class ClawdButton {
     let pose: Pose
     let rest = 0
 
+    if (this.glide) this.stepGlide(dt * this.speed)
     if (this.game && !this.controlled) return this.stepGame(this.game, dt)
 
     if (this.controlled) {
@@ -624,6 +713,15 @@ export class ClawdButton {
       if (life.pulses.length) pulses = pulses.concat(life.pulses)
       // naps are timed in real seconds, so only at normal speed
       if (!this.linger && this.speed === 1) rest = life.rest
+      // auto-play: after a quiet spell, something at random (it starts on the next frame)
+      if (!this.controlled && this.autoReady()) {
+        this.autoWait += dt * this.speed
+        if (this.autoWait >= this.autoGap) {
+          if (this.s.shuffleColors) this.shuffle()
+          this.play(pickRandom(this.lastAnimId), { loop: false, auto: true })
+        }
+        else rest = Math.min(rest, this.autoGap - this.autoWait)
+      }
     }
 
     // reduced motion: no tap flash, and pulses thinned to at most 3 a second and toned down
@@ -651,7 +749,21 @@ export class ClawdButton {
     this.drawGrid(pulses, fieldT)
     this.drawSprite(pose)
     this.drawFx(particles)
-    return rest
+    return this.glide ? 0 : rest
+  }
+
+  /** Colour shuffle: one frame further along the glide (smoothstep), all colours mixed together. */
+  private stepGlide(dt: number) {
+    const g = this.glide!
+    g.t += dt
+    const k = Math.min(1, g.t / GLIDE)
+    const to = g.to ?? this.s.colors
+    this.tint = mixColors(g.from, to, k * k * (3 - 2 * k))
+    if (k >= 1) {
+      this.tint = g.to
+      this.glide = null
+    }
+    this.applyColors()
   }
 
   /** A frame of Bug Jump: its pose, bugs and ✓s, pulses and the score in the label's place. */
@@ -723,7 +835,7 @@ export class ClawdButton {
   composite(ctx: CanvasRenderingContext2D) {
     const { W, H } = this
     const s = this.s
-    const c = s.colors
+    const c = this.colors
     const bgc = c.background
     const kk = this.k
     ctx.save()
@@ -830,8 +942,8 @@ export class ClawdButton {
     g.clearRect(0, 0, this.W, this.H)
     if (!pulses.length) return
     computeField(fieldT, pulses, this.field)
-    const lit = rgbCsv(this.s.colors.energy)
-    const glo = rgbCsv(this.s.colors.effectGlow)
+    const lit = rgbCsv(this.colors.energy)
+    const glo = rgbCsv(this.colors.effectGlow)
     const X = this.X
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {

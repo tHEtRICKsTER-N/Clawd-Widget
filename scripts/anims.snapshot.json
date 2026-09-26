@@ -1760,6 +1760,65 @@
     "91aabfd1f5bc"
    ]
   },
+  "antic: sneeze": {
+   "samples": 121,
+   "chunks": [
+    "fc94cb65fd40",
+    "e2fd59f53972",
+    "ded2487c565a",
+    "a254fbb4fe34",
+    "0848fd3259ec",
+    "c0adcdaa1679",
+    "574c7a96b7a3",
+    "afea83360f9b",
+    "145308c9939d"
+   ]
+  },
+  "antic: whistle": {
+   "samples": 170,
+   "chunks": [
+    "585a2019d87a",
+    "a4768ba88d3a",
+    "d003ae597a8b",
+    "95de9a6c83b0",
+    "4bebae30fb9a",
+    "9ddfbbf8185a",
+    "1f882a800e14",
+    "7071a3ed368e",
+    "ce71f43726fd",
+    "7b2d2d22a3e8",
+    "525fbd8aa641",
+    "2e5bfccd1a1f"
+   ]
+  },
+  "antic: lookAround": {
+   "samples": 157,
+   "chunks": [
+    "c6fbb1bf45d0",
+    "390e0aee4502",
+    "390e0aee4502",
+    "6a6269da140e",
+    "4bddcb2678f7",
+    "afabdb2edb70",
+    "afabdb2edb70",
+    "275be5249c9d",
+    "54133df0d89b",
+    "db6173d77931",
+    "e8adb72522c3"
+   ]
+  },
+  "antic: hop": {
+   "samples": 97,
+   "chunks": [
+    "017bef65f2ed",
+    "0c6b287809f6",
+    "af29dc54f030",
+    "d0a28ab8dcb6",
+    "ab9ebfe88dc2",
+    "cba22c76ff42",
+    "46a90215f5db"
+   ]
+  },
   "antic: doze": {
    "samples": 721,
    "chunks": [

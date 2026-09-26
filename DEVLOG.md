@@ -4,6 +4,88 @@ Progress notes for [PLAN.md](PLAN.md), newest first.
 
 ---
 
+## 2026-09-26 · Release 1.2.0: sanity check and release setup
+
+**Sanity check** of Phase 6 on top of 1.1.0. Everything was re-run against the final code:
+- **Engine and parsing:**
+  - `check:anims`: all 44 `same`.
+  - Pixel harness: the six originals identical.
+  - Flash rate: every animation at most 3 onsets a second under reduced motion, and no pulse pops in.
+  - Seasons, the attribute parser (14 checks), autoplay parsing (5), Bug Jump units (12).
+  - Frame loop: 60 ticks a second before, during and after a game.
+- **Browser:**
+  - Auto-play (8 checks) and shuffle (10 checks).
+  - The live antic scheduler.
+  - The OBS overlay (round trip, page, hash triggers, builder).
+  - `<clawd-button>` from a fresh package build, served statically (19 checks).
+  - The extension content script on a hostile page.
+  - The popup, which shows the new Auto-play and Shuffle colors controls.
+- **Clean clone:** a fresh clone of the pushed branch passed `npm ci`, `tsc`, `check:anims` and all four builds.
+- **Packaged app:** built with `electron-builder --linux dir` and run with Non-stop and Shuffle colors. It played dance, ship and hello through 10 different backgrounds while the saved theme stayed Original, with no errors.
+
+**Release setup:**
+- **Versions:** `package.json` 1.2.0, and `clawd-button` 0.2.0 (new `autoplay` and `shuffle` attributes; the README's CDN link moves to `@0.2`).
+- **`CHANGELOG.md`:** new, with 1.2.0 and 1.1.0.
+- **Release workflow:** it now fails early if `CHANGELOG.md` has no section for the tag's version. It publishes that section as the Release notes, followed by GitHub's generated list of pull requests. Both workflow files parse as YAML, and both steps were replayed locally for 1.2.0 and 1.1.0.
+- **Docs:** CONTRIBUTING, `CLAUDE.md` and the local Claude Code guide describe the new steps: bump and changelog in a PR, then tag the merged `main`.
+
+## 2026-09-26 · 6.3 Color shuffle
+
+Setting `shuffleColors` (off by default; it only does something with auto-play on). Every auto-play glides into a random theme preset, never the one already showing, so animations and colours get mixed and matched. Non-stop plus shuffle is a party mode, shown in `docs/media/party.gif` in the README.
+- **The glide:** 1.5 s with smoothstep easing, mixing all seven colours in RGB. The background gradients, glow, label, Clawd, particles and grid all move together.
+- **Your colours stay yours:** the shuffle is only shown. The renderer holds a `tint` (the colours on screen) apart from `settings.colors`, which is never written, so nothing reaches storage (and nothing hits `chrome.storage.sync`) while it shuffles.
+- **Turning it off:** unticking *Shuffle colors*, or setting auto-play to Off, glides back to your colours. Editing a colour yourself shows it at once, dropping the shuffle.
+- **Frames:** the loop redraws every frame during a glide, then naps again.
+- **Refactor:** the colour half of `applySettings` became `applyColors()`. Every colour use reads `this.colors` (the tint, or the settings' own): the export compositor, the toast and the grid's energy colours too.
+- **Everywhere:** a *Shuffle colors* checkbox next to *Auto-play* (disabled while auto-play is Off), a menu item in the desktop menus, `shuffle=1` for the OBS overlay, and a `shuffle` attribute on `<clawd-button>`.
+
+Verified (Chromium):
+- **Gliding in:** an auto-play glided into a random preset (Nord). Halfway through, the colours were a mix belonging to no preset, and `settings.colors` stayed untouched.
+- **Picking:** seven shuffles in a row never picked the theme already showing (nord → candy → original → candy → dracula → ocean → matrix).
+- **Turning it off:** mid-glide the colours are a mix, and afterwards the chosen colours are back with the tint cleared. Auto-play without shuffle keeps the colours. Editing a colour shows it at once.
+- **Naps:** once still (after gliding home and the fade-out), the loop napped: 0 frames in 1.5 s.
+- **Looks:** frames of a glide from Original to Synthwave at 0/25/50/75/100% look right.
+- **Default look unchanged:** the pixel harness gives identical frames for the six original animations after the `applyColors` refactor, and `check:anims` shows all 44 `same`.
+
+## 2026-09-26 · 6.1 Auto-play while idle
+
+Setting `autoPlay`, in seconds: 0 is off (the default), 1 is non-stop, anything else is "roughly every". The UI offers ~30 s, 1, 2, 5, 10 and 30 min, and Non-stop.
+- **How it works:** while the button rests, the renderer counts quiet seconds. After a gap it plays a random animation from what's on offer that day (`pickRandom`: never the same twice in a row, seasonal ones only in season). The gap is the setting ±40%, so it doesn't feel mechanical, and Non-stop leaves 1.2 s between plays.
+- **What resets the wait:** any play, click, drag, status or stop.
+- **What pauses it:** Bug Jump (and the moment before it starts after the secret), dragging, the "waiting on you" badge, and a hidden page or widget (`document.visibilityState`). In the extension, that means only the tab you're looking at plays.
+- **Naps:** the frame loop still naps at rest; the nap just ends in time for the next auto-play.
+- **No achievement events:** auto-plays skip `onEvent`, so they can't unlock Collector or Night owl. `onPlay` still fires, so hosts and `clawd-play` listeners see them.
+- **Everywhere:** *Auto-play* in *Between plays* (all hosts' settings), an *Auto-play* submenu in the desktop right-click and tray menus, `autoplay=60|nonstop` for the OBS overlay, and `autoplay="60"|"nonstop"` on `<clawd-button>` (a bare `autoplay` means non-stop).
+
+**Fixed along the way: a second frame loop.** When something started a play or the game from inside a frame, the loop ran twice as often from then on. That happens with Bug Jump after the Konami code, and would with every auto-play. `wake()` asked for an animation frame, then the frame loop asked for another, and both kept going: measured at 120 ticks a second, even after the game ended. `destroy()` could only cancel one of them. Now `wake()` during a frame just notes it, and the frame loop skips its nap: 60 ticks a second before, during and after.
+
+Verified (Chromium, plus Electron under Xvfb):
+- **Timing:**
+  - Off by default: nothing plays.
+  - With a 2 s wait, the auto-play came about 2 s later, with the loop napping in between, and no achievement event was sent.
+  - 400 gaps for "~30 s" fell between 18 and 42 s.
+  - Non-stop played hello, code, guitar back to back in 16 s, with no repeats.
+- **Blocked cases:** nothing plays while hidden, waiting, dragging or in Bug Jump. The waiting case shows one play, which is the status's own wave. A click resets the wait.
+- **Playground:** picking Non-stop in the card saves `autoPlay: 1`, and the preview kept changing on its own for 8 s untouched.
+- **Parsing:** `autoplay` values (`nonstop`, bare, `60`, `off`, `0`, junk, absent) parse correctly. Overlay URLs round-trip. `normalize` gives old settings 0 and clamps bad values. The desktop menu's list matches the settings list.
+- **Desktop:** setting it through the desktop bridge reaches the widget, which then played Ship It, Level Up and Code Mode in 12 s.
+- **Frame loop:** 60 ticks a second before, during and after a game started mid-frame (120 after, before the fix).
+- `tsc` and `check:anims` (all 44 `same`) pass.
+
+## 2026-09-26 · 6.2 More idle antics
+
+Four more of the rare moves between plays, alongside stretch, yawn, scratch and wander. They're chosen by the same scheduler, one every 90–240 s, never the same twice in a row, and only with *Idle antics* on. Each is a pure `Act` in `engine/antics.ts`:
+- **Sneeze** (1.9 s): "ah…" (eyes shut, a little taller), "ah…!" (mouth open, arms up), CHOO: a crouch, a soft `land` thud, and a spray bursting out past both sides of the body. Then a dazed wide-eyed blink, and happy again.
+- **Whistle** (2.7 s): small mouth, looking up one way then the other, while three notes float up from its shoulder. Each note lights its grid cell with a twinkle, which is also a tone with sound on.
+- **Look around** (2.5 s): leans left with a hand up, then right, looks up, a "?" appears, and it shrugs.
+- **Hop** (1.5 s): two happy hops, 3 px then 2 px, each landing with a soft bump in the grid.
+
+Verified:
+- **Frames:** checked at key times. Fixes from that pass: the sneeze spray first landed on the face and looked like tears, and now starts past the body. The whistle blip first sat alone above the head, and now lights where each note appears, clear of the arm.
+- **Live scheduler:** forcing twelve antics in a row in the floating widget picked 7 different ones with no repeat twice in a row, and every pose of the four new ones showed up. No errors.
+- **Grid flashes:** at most one thud or bump per 0.6 s; the whistle's twinkles are single cells.
+- **Snapshot:** `check:anims` shows all 40 existing entries `same`, and `--update` added only the 4 new antics.
+
 ## 2026-09-26 · License, third-party notices and releases
 
 The owner chose the MIT license, to publish the npm package themselves, a PR into `main`, and releases with downloads (no GitHub Pages for now).
